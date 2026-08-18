@@ -1,0 +1,44 @@
+id: P2-A
+title: Rollout Strategy
+type: STRATEGY
+parent: P2
+status: DISCUSSING
+
+objective: >
+  Decide how rollout readiness is defined, measured, and sequenced before
+  any execution workstream starts.
+
+scope:
+  - Readiness criteria and gates
+  - Rollout sequencing across domains
+out_of_scope:
+  - Actual cutover execution
+  - Per-team staffing
+
+frozen_decisions:
+  - id: FD-201
+    summary: Readiness gates are defined once, in canonical docs, and linked from planning nodes.
+    source: docs/rollout/readiness-criteria.md
+open_decisions:
+  - id: OD-201
+    summary: Should readiness gates be re-validated per domain or once for the whole rollout?
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on: []
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/readiness-criteria.md
+evidence_sources: []
+
+next_action: >
+  Resolve OD-201, then close the readiness preflight discussion at P2-A4.
+
+discussion_status: IN_PROGRESS
+writeback_status: DONE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-16

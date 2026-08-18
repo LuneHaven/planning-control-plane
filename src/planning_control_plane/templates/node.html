@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}{{ node.id }} · {{ node.title }} · {{ project_name }}{% endblock %}
+{% block content %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <ol>
+{% for crumb in breadcrumb %}
+    <li>
+{% if crumb.current %}
+      <span class="mono" aria-current="page">{{ crumb.id }}</span>
+{% else %}
+      <a class="mono" href="{{ crumb.url }}">{{ crumb.id }}</a>
+{% endif %}
+    </li>
+{% endfor %}
+  </ol>
+</nav>
+
+<header class="node-head">
+  <h1><span class="mono node-id">{{ node.id }}</span> — {{ node.title }}</h1>
+  <p class="node-meta">
+    <span class="type-chip">{{ node.type }}</span>
+    <span class="badge" data-status="{{ node.status }}">{{ node.status }}</span>
+{% if node.last_updated %}    <span class="muted">updated <span class="mono">{{ node.last_updated }}</span></span>
+{% endif %}
+  </p>
+</header>
+
+<section class="panel" aria-labelledby="objective-heading">
+  <h2 id="objective-heading">Objective</h2>
+{% if node.objective %}
+  <p class="prose">{{ node.objective }}</p>
+{% else %}
+  <p class="empty-state">No objective recorded.</p>
+{% endif %}
+</section>
+
+<section class="panel" aria-labelledby="scope-heading">
+  <h2 id="scope-heading">Scope</h2>
+  <div class="two-col">
+    <div>
+      <h3>In Scope</h3>
+{% if node.scope %}
+      <ul class="scope-list">
+{% for item in node.scope %}        <li>{{ item }}</li>
+{% endfor %}      </ul>
+{% else %}
+      <p class="empty-state">Nothing declared in scope.</p>
+{% endif %}
+    </div>
+    <div>
+      <h3>Out of Scope</h3>
+{% if node.out_of_scope %}
+      <ul class="scope-list scope-list--out">
+{% for item in node.out_of_scope %}        <li>{{ item }}</li>
+{% endfor %}      </ul>
+{% else %}
+      <p class="empty-state">Nothing declared out of scope.</p>
+{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="frozen-heading">
+  <h2 id="frozen-heading">Frozen Decisions</h2>
+{% if inherited_frozen %}
+  <div class="inherited-groups">
+{% for group in inherited_frozen %}
+    <div class="inherited-group">
+      <h3>Inherited from <a href="{{ group.ancestor.url }}"><span class="mono">{{ group.ancestor.id }}</span> — {{ group.ancestor.title }}</a></h3>
+      <ul class="decision-list">
+{% for decision in group.decisions %}        <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-summary">{{ decision.summary }}</span>{% if decision.source %}<span class="decision-source">source: <span class="mono">{{ decision.source }}</span></span>{% endif %}</li>
+{% endfor %}      </ul>
+    </div>
+{% endfor %}
+  </div>
+{% else %}
+  <p class="empty-state">No frozen decisions inherited from ancestors.</p>
+{% endif %}
+  <h3 class="current-group-heading">Current Node</h3>
+{% if node.frozen_decisions %}
+  <ul class="decision-list">
+{% for decision in node.frozen_decisions %}    <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-summary">{{ decision.summary }}</span>{% if decision.source %}<span class="decision-source">source: <span class="mono">{{ decision.source }}</span></span>{% endif %}</li>
+{% endfor %}  </ul>
+{% else %}
+  <p class="empty-state">No frozen decisions on this node.</p>
+{% endif %}
+</section>
+
+<section class="panel" aria-labelledby="open-heading">
+  <h2 id="open-heading">Open Decisions</h2>
+{% if node.open_decisions %}
+  <ul class="decision-list">
+{% for decision in node.open_decisions %}    <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-summary">{{ decision.summary }}</span>{% if decision.source %}<span class="decision-source">source: <span class="mono">{{ decision.source }}</span></span>{% endif %}</li>
+{% endfor %}  </ul>
+{% else %}
+  <p class="empty-state">No open decisions.</p>
+{% endif %}
+</section>
+
+<section class="panel panel--blocking" aria-labelledby="blocking-heading">
+  <h2 id="blocking-heading">Blocking Decisions</h2>
+{% if node.blocking_decisions %}
+  <ul class="decision-list decision-list--blocking">
+{% for decision in node.blocking_decisions %}    <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-summary">{{ decision.summary }}</span>{% if decision.source %}<span class="decision-source">source: <span class="mono">{{ decision.source }}</span></span>{% endif %}</li>
+{% endfor %}  </ul>
+{% else %}
+  <p class="empty-state">No blocking decisions.</p>
+{% endif %}
+</section>
+
+<section class="panel" aria-labelledby="deferred-heading">
+  <h2 id="deferred-heading">Deferred Decisions</h2>
+{% if node.deferred_decisions %}
+  <ul class="decision-list">
+{% for decision in node.deferred_decisions %}    <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-summary">{{ decision.summary }}</span>{% if decision.source %}<span class="decision-source">source: <span class="mono">{{ decision.source }}</span></span>{% endif %}</li>
+{% endfor %}  </ul>
+{% else %}
+  <p class="empty-state">No deferred decisions.</p>
+{% endif %}
+</section>
+
+<section class="panel" aria-labelledby="relations-heading">
+  <h2 id="relations-heading">Relations</h2>
+  <dl class="relations">
+    <div class="rel-row">
+      <dt>Dependencies</dt>
+      <dd>
+{% if dependencies %}
+        <ul class="ref-list">
+{% for ref in dependencies %}          <li>{% if ref.known %}<a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> — {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status }}">{{ ref.status }}</span>{% else %}<span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted">(unknown node)</span>{% endif %}</li>
+{% endfor %}        </ul>
+{% else %}
+        <span class="muted">None.</span>
+{% endif %}
+      </dd>
+    </div>
+    <div class="rel-row">
+      <dt>Blocks</dt>
+      <dd>
+{% if blocks %}
+        <ul class="ref-list">
+{% for ref in blocks %}          <li>{% if ref.known %}<a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> — {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status }}">{{ ref.status }}</span>{% else %}<span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted">(unknown node)</span>{% endif %}</li>
+{% endfor %}        </ul>
+{% else %}
+        <span class="muted">None.</span>
+{% endif %}
+      </dd>
+    </div>
+    <div class="rel-row">
+      <dt>Related Nodes</dt>
+      <dd>
+{% if related %}
+        <ul class="ref-list">
+{% for ref in related %}          <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> — {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status }}">{{ ref.status }}</span></li>
+{% endfor %}        </ul>
+{% else %}
+        <span class="muted">None.</span>
+{% endif %}
+      </dd>
+    </div>
+{% if supersedes %}
+    <div class="rel-row">
+      <dt>Supersedes</dt>
+      <dd>
+        <ul class="ref-list">
+{% for ref in supersedes %}          <li>{% if ref.known %}<a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> — {{ ref.title }}</a>{% else %}<span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted">(unknown node)</span>{% endif %}</li>
+{% endfor %}        </ul>
+      </dd>
+    </div>
+{% endif %}
+{% if superseded_by %}
+    <div class="rel-row">
+      <dt>Superseded By</dt>
+      <dd>
+        <ul class="ref-list">
+{% for ref in superseded_by %}          <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> — {{ ref.title }}</a></li>
+{% endfor %}        </ul>
+      </dd>
+    </div>
+{% endif %}
+  </dl>
+</section>
+
+<section class="panel" aria-labelledby="sources-heading">
+  <h2 id="sources-heading">Sources</h2>
+  <div class="two-col">
+    <div>
+      <h3>Canonical Sources</h3>
+{% if node.canonical_sources %}
+      <ul class="source-list">
+{% for source in node.canonical_sources %}        <li><span class="path mono">{{ source.path }}</span>{% if source.label %} <span class="src-tag" data-kind="{{ source.label }}">{{ source.label }}</span>{% endif %}</li>
+{% endfor %}      </ul>
+{% else %}
+      <p class="empty-state">None.</p>
+{% endif %}
+    </div>
+    <div>
+      <h3>Evidence Sources</h3>
+{% if node.evidence_sources %}
+      <ul class="source-list">
+{% for source in node.evidence_sources %}        <li><span class="path mono">{{ source.path }}</span>{% if source.label %} <span class="src-tag" data-kind="{{ source.label }}">{{ source.label }}</span>{% endif %}</li>
+{% endfor %}      </ul>
+{% else %}
+      <p class="empty-state">None.</p>
+{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="tracks-heading">
+  <h2 id="tracks-heading">Track Status</h2>
+  <p class="muted panel-hint">Discussion, writeback and implementation progress are tracked independently and never derived from each other.</p>
+  <dl class="tracks">
+    <div class="track"><dt>Discussion</dt><dd><span class="track-badge">{{ tracks.discussion }}</span></dd></div>
+    <div class="track"><dt>Writeback</dt><dd><span class="track-badge">{{ tracks.writeback }}</span></dd></div>
+    <div class="track"><dt>Implementation</dt><dd><span class="track-badge">{{ tracks.implementation }}</span></dd></div>
+  </dl>
+</section>
+
+<section class="panel next-action" aria-labelledby="next-heading">
+  <h2 id="next-heading">Next Action</h2>
+{% if node.next_action %}
+  <p class="prose">{{ node.next_action }}</p>
+{% else %}
+  <p class="empty-state">No next action recorded.</p>
+{% endif %}
+</section>
+
+<section class="panel resume" aria-labelledby="resume-heading">
+  <h2 id="resume-heading">Resume This Work</h2>
+  <p class="muted">Session resume capsule — the same content as <span class="mono">pcp context {{ node.id }}</span>. Copy it into a new session to resume this branch.</p>
+  <div class="resume-actions">
+    <button type="button" class="copy-context" aria-label="Copy context capsule to clipboard">Copy Context</button>
+  </div>
+  <div class="copy-fallback" hidden>
+    <p class="hint">Automatic copy is not available in this browser. Select the text below and copy it manually (Ctrl/Cmd+C).</p>
+    <textarea readonly aria-label="Context capsule text">{{ capsule }}</textarea>
+  </div>
+  <pre class="capsule-text">{{ capsule }}</pre>
+</section>
+{% endblock %}

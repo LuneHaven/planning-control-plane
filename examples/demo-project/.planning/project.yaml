@@ -1,0 +1,26 @@
+# Planning Control Plane — demo target repository
+#
+# This file is part of a synthetic demo project that exists only to prove
+# that PCP works on any repository. All content is generic placeholder
+# material; no real product data is used.
+
+project:
+  id: demo-project
+  name: Demo Project
+
+planning:
+  # Current focus node; switch with `pcp focus <node-id>`.
+  current_focus: P2-A4
+
+authority:
+  # Optional roots used to classify linked sources into
+  # canonical / current-state / planning buckets.
+  canonical_roots:
+    - docs/rollout
+  current_state_roots:
+    - docs/notes
+  planning_roots:
+    - .planning
+
+output:
+  directory: .planning/dist

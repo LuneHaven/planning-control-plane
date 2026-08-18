@@ -1,0 +1,43 @@
+id: P2-A3
+title: Freeze Rollout Sequencing
+type: DECISION
+parent: P2-A
+status: DONE
+
+objective: >
+  Decide the order in which domains roll out, and freeze the sequencing
+  decision in the canonical sequencing doc.
+
+scope:
+  - Cross-domain rollout ordering
+out_of_scope:
+  - Per-domain readiness evaluation (deferred to preflight)
+
+frozen_decisions:
+  - id: FD-221
+    summary: Sequencing is frozen as docs-first, then infrastructure, then end-user domains.
+    source: docs/rollout/sequencing.md
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on:
+  - P2-A2
+blocks:
+  - P2-A4
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/sequencing.md
+evidence_sources:
+  - docs/notes/2026-08-15-sequencing-review.md
+
+next_action: >
+  Completed; implementation of the docs-first wave not yet started.
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: NOT_STARTED
+
+last_updated: 2026-08-15

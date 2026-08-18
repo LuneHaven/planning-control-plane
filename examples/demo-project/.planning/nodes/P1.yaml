@@ -1,0 +1,44 @@
+id: P1
+title: Program Foundation
+type: PROGRAM
+parent: null
+status: DONE
+
+objective: >
+  Establish the program foundation: planning graph, decision records, and
+  the authority boundary between planning artifacts and canonical docs.
+
+scope:
+  - Planning graph setup and tooling
+  - Authority boundary definition
+out_of_scope:
+  - Any rollout execution work
+  - Product feature decisions
+
+frozen_decisions:
+  - id: FD-001
+    summary: The program is split into a foundation phase and a rollout phase.
+    source: docs/rollout/rollout-charter.md
+  - id: FD-002
+    summary: Planning nodes never override canonical documents; they only link them.
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on: []
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/rollout-charter.md
+evidence_sources: []
+
+next_action: >
+  Foundation complete; rollout phase owns the next steps.
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: DONE
+
+last_updated: 2026-08-02

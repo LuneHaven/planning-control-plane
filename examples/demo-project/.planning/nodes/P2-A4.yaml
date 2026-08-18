@@ -1,0 +1,49 @@
+id: P2-A4
+title: Rollout Readiness Preflight
+type: DISCUSSION
+parent: P2-A
+status: NOT_STARTED
+
+objective: >
+  Run the readiness preflight for the first wave: verify every gate from the
+  canonical criteria doc against current evidence, and surface anything that
+  blocks execution start.
+
+scope:
+  - First-wave readiness verification
+  - Blocking-issue escalation
+out_of_scope:
+  - Changing the readiness criteria (frozen at P2-A2)
+  - Changing the sequencing (frozen at P2-A3)
+  - Actual cutover execution
+
+frozen_decisions: []
+open_decisions:
+  - id: OD-401
+    summary: How much readiness evidence is enough to declare the first wave ready?
+blocking_decisions:
+  - id: BD-401
+    summary: Must a blocking gate owner sign off before rollout execution starts?
+deferred_decisions: []
+
+depends_on:
+  - P2-A3
+blocks: []
+related_to:
+  - P2-A2
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/readiness-criteria.md
+  - docs/rollout/sequencing.md
+evidence_sources:
+  - docs/notes/2026-08-15-sequencing-review.md
+
+next_action: >
+  Resolve BD-401 with the gate owners, then walk the criteria checklist.
+
+discussion_status: NOT_STARTED
+writeback_status: NOT_APPLICABLE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-17

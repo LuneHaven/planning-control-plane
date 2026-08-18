@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ project_name }} · Planning Control Plane{% endblock %}</title>
+  <link rel="stylesheet" href="{{ base.assets }}style.css">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Planning tree">
+    <div class="sidebar-head">
+      <a class="sidebar-project" href="{{ base.index }}">{{ project_name }}</a>
+    </div>
+    <nav class="sidebar-nav" aria-label="Planning tree">
+{% if tree %}
+      <ul role="tree" aria-label="Planning tree" class="tree">
+{% for item in tree recursive %}
+        <li role="treeitem" tabindex="0" class="treeitem{% if item.is_current %} is-current-page{% endif %}{% if item.is_focus %} is-focus{% endif %}"{% if item.children %} aria-expanded="true"{% endif %}>
+          <span class="treeitem-row">
+            <a class="tree-link" href="{{ base.nodes }}{{ item.file }}"{% if item.is_current %} aria-current="page"{% endif %} title="{{ item.id }} — {{ item.title }}"><span class="tree-id">{{ item.id }}</span><span class="tree-title">{{ item.title }}</span></a>
+{% if item.is_focus %}<span class="focus-flag" title="Current focus">focus</span>
+{% endif %}<span class="badge" data-status="{{ item.status }}">{{ item.status }}</span>
+          </span>
+{% if item.children %}
+          <ul role="group">
+{{ loop(item.children) }}
+          </ul>
+{% endif %}
+        </li>
+{% endfor %}
+      </ul>
+{% else %}
+      <p class="sidebar-empty">No planning nodes.</p>
+{% endif %}
+    </nav>
+  </aside>
+  <div class="frame">
+    <header class="topbar">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="false">
+        <span aria-hidden="true">☰</span><span>Tree</span>
+      </button>
+      <div class="topbar-titles">
+        <span class="topbar-project">{{ project_name }}</span>
+        <span class="topbar-tool">Planning Control Plane</span>
+      </div>
+      <a class="topbar-dashboard" href="{{ base.index }}">Dashboard</a>
+    </header>
+    <main class="content" id="main-content">
+{% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <p class="footer-title">Planning Control Plane</p>
+      <p>This view is authoritative only for planning structure and planning progress.</p>
+      <p>Normative product, governance, architecture, and implementation semantics remain owned by the linked project artifacts.</p>
+    </footer>
+  </div>
+</div>
+<script src="{{ base.assets }}app.js"></script>
+</body>
+</html>

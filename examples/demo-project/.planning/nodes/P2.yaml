@@ -1,0 +1,43 @@
+id: P2
+title: Product Rollout
+type: PHASE
+parent: P1
+status: IMPLEMENTING
+
+objective: >
+  Roll the product out domain by domain, keeping every workstream inside the
+  scope frozen at program level.
+
+scope:
+  - Rollout readiness and sequencing
+  - Per-domain rollout execution tracking
+out_of_scope:
+  - Re-opening program foundation decisions
+  - Changing the authority boundary
+
+frozen_decisions:
+  - id: FD-101
+    summary: Rollout proceeds domain by domain; no big-bang cutover.
+    source: docs/rollout/rollout-charter.md
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on:
+  - P1
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/rollout-charter.md
+evidence_sources: []
+
+next_action: >
+  Finish the readiness preflight discussion before execution starts.
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: IN_PROGRESS
+
+last_updated: 2026-08-14

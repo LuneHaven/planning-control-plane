@@ -1,0 +1,43 @@
+id: P2-A2
+title: Define Rollout Readiness Criteria
+type: DISCUSSION
+parent: P2-A
+status: DONE
+
+objective: >
+  Agree on the readiness criteria a domain must satisfy before rollout
+  execution may start, and freeze them in the canonical criteria doc.
+
+scope:
+  - Readiness criteria definition
+out_of_scope:
+  - Domain-specific thresholds
+  - Sequencing (handled at P2-A3)
+
+frozen_decisions:
+  - id: FD-211
+    summary: Readiness criteria require explicit evidence links, not self-reported status.
+    source: docs/rollout/readiness-criteria.md
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on:
+  - P2-A1
+blocks: []
+related_to:
+  - P2-A1
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/readiness-criteria.md
+evidence_sources: []
+
+next_action: >
+  Completed; criteria frozen in the canonical doc.
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-08

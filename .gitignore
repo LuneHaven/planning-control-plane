@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage
+.coverage
+htmlcov/
+
+# PCP: generated planning sites are reproducible via `pcp build`
+.planning/dist/
+examples/*/.planning/dist/
+
+# Internal working files (not part of the published tool)
+SPEC.md
+.review-workflow.js

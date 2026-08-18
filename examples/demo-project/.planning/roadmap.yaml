@@ -1,0 +1,4 @@
+# Planning graph nodes live in nodes/*.yaml (one file per node).
+# This file may also declare nodes inline under `nodes:`; both sources
+# are merged, and duplicate ids are rejected by `pcp validate`.
+nodes: []

@@ -1,0 +1,40 @@
+id: P2-A1
+title: Survey Existing Rollout Docs
+type: INVESTIGATION
+parent: P2-A
+status: DONE
+
+objective: >
+  Inventory the existing rollout documents and mark which of them are
+  canonical, which are stale state, and which are missing.
+
+scope:
+  - Document inventory and classification
+out_of_scope:
+  - Rewriting the documents themselves
+
+frozen_decisions: []
+open_decisions: []
+blocking_decisions: []
+deferred_decisions:
+  - id: DD-101
+    summary: Whether the legacy rollout checklist should be archived or linked as evidence.
+
+depends_on:
+  - P2
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/inventory.md
+evidence_sources: []
+
+next_action: >
+  Completed; findings written back to the inventory doc.
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-05
