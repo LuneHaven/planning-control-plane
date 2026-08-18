@@ -2,16 +2,19 @@
 
 English | [简体中文](README.zh-CN.md)
 
+**Keep long-running planning context in your repository instead of in chat
+transcripts.**
+
+![Dashboard](docs/screenshots/dashboard-en.png)
+
+## Why PCP?
+
 **Planning Control Plane (PCP)** is a repository-native tool for maintaining
 long-running planning context across branches, decisions, implementation
 stages and AI sessions. It turns a planning process that used to live — and
 rot — inside long chat transcripts into a persistent **Planning Graph** in
 your repository, and projects it as a deterministic, offline static
 dashboard.
-
-![Dashboard](docs/screenshots/dashboard-en.png)
-
-## Why PCP?
 
 Long planning conversations fail in a predictable way:
 
@@ -143,7 +146,11 @@ pcp context       # the resume capsule for the current focus
 
 To explore a ready-made example instead, see
 [`examples/demo-project`](examples/demo-project) — a synthetic repository
-with a seven-node planning tree you can `pcp build` immediately.
+with a seven-node planning tree you can `pcp build` immediately. Its
+counterpart [`examples/demo-project-zh`](examples/demo-project-zh) is the
+same kind of scenario written in Chinese; the two are independent planning
+data sets, not translations of each other (see
+[Localization](#localization)).
 
 ## CLI
 
@@ -301,6 +308,17 @@ The UI ships in English and 简体中文.
   `localized label + RAW_ENUM` (e.g. `未开始 NOT_STARTED`), so machine-facing
   values remain searchable.
 
+> The language switch localizes PCP's interface.
+> It does not translate your project planning content.
+> Planning data remains exactly as authored.
+
+That boundary is why this repository ships two demo projects rather than one:
+[`examples/demo-project`](examples/demo-project) holds English planning data
+and [`examples/demo-project-zh`](examples/demo-project-zh) holds Chinese
+planning data. The Chinese screenshots in
+[README.zh-CN.md](README.zh-CN.md) come from the Chinese demo — not from the
+English demo viewed through a Chinese UI.
+
 ## Architecture
 
 | Layer | Location | Owner |
@@ -325,8 +343,9 @@ Every generated page states this in its footer.
 
 ## Current Status
 
-Alpha (`0.1.2`). The engine, CLI, validator, capsule and bilingual UI are
-working and covered by an automated test suite (220 tests). PCP is **not
+**Current release: V0.1.2.** V0.1.2 is a usable MVP validated through
+real-project dogfooding: the engine, CLI, validator, capsule and bilingual UI
+all work and are covered by an automated test suite (229 tests). PCP is **not
 yet published on PyPI** — install from source as shown above. No remote
 repository has been set up yet.
 
@@ -339,6 +358,15 @@ decision-making, semantic search, Jira/Notion replacement.
 Named extension points reserved for later versions (no interfaces yet):
 `pcp prompt`, `pcp close`, `pcp reopen`, Git/GitHub adapters, Claude Code /
 Codex / ChatGPT adapters, multi-project workspace.
+
+V0.2 candidates — **candidate, not committed**; none of them is implemented
+and none is a promise:
+
+- close / reopen workflow
+- prompt generation
+- integration status
+- search / filter
+- multi-project workspace
 
 ## Contributing
 

@@ -1,0 +1,40 @@
+id: P2-A1
+title: 调研现有推广文档
+type: INVESTIGATION
+parent: P2-A
+status: DONE
+
+objective: >
+  盘点现有的推广相关文档，标注哪些是规范文档、哪些是已过时的现状记录、
+  哪些还缺失。
+
+scope:
+  - 文档盘点与分类
+out_of_scope:
+  - 重写文档本身
+
+frozen_decisions: []
+open_decisions: []
+blocking_decisions: []
+deferred_decisions:
+  - id: DD-101
+    summary: 历史遗留的推广检查清单是归档，还是作为佐证材料继续链接？
+
+depends_on:
+  - P2
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/inventory.md
+evidence_sources: []
+
+next_action: >
+  已完成；结论已回写到文档盘点表。
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-05

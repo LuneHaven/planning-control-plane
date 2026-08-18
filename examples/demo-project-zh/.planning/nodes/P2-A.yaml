@@ -1,0 +1,44 @@
+id: P2-A
+title: 推广策略
+type: STRATEGY
+parent: P2
+status: DISCUSSING
+
+objective: >
+  在任何执行工作开始之前，先确定推广就绪度如何定义、如何度量、按什么顺序
+  推进。
+
+scope:
+  - 就绪标准与门禁
+  - 跨领域的推广顺序
+out_of_scope:
+  - 实际的切换执行
+  - 各团队的人员安排
+
+frozen_decisions:
+  - id: FD-201
+    summary: 就绪门禁只在规范文档里定义一次，规划节点只做链接。
+    source: docs/rollout/readiness-criteria.md
+open_decisions:
+  - id: OD-201
+    summary: 就绪门禁应该按领域逐个复核，还是整个推广只复核一次？
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on: []
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/readiness-criteria.md
+evidence_sources: []
+
+next_action: >
+  先裁决 OD-201，再收尾 P2-A4 的推广就绪度预检讨论。
+
+discussion_status: IN_PROGRESS
+writeback_status: DONE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-16

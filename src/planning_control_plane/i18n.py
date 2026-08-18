@@ -98,7 +98,7 @@ _EN: dict[str, str] = {
     # ------------------------------------------------------------- chrome
     "site.tool": "Planning Control Plane",
     "site.skip": "Skip to main content",
-    "site.dashboard": "Dashboard",
+    "site.dashboard": "Overview",
     "site.tree": "Tree",
     "site.tree_label": "Planning tree",
     "site.sidebar_tree_label": "Planning tree (sidebar)",

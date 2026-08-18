@@ -1,0 +1,48 @@
+id: P2-A4
+title: 推广就绪度预检
+type: DISCUSSION
+parent: P2-A
+status: NOT_STARTED
+
+objective: >
+  对第一批推广领域做就绪度预检：逐条核对规范文档里的门禁与当前佐证材料，
+  并把所有会阻塞执行开始的问题暴露出来。
+
+scope:
+  - 第一批领域的就绪度核对
+  - 阻塞问题的上报与升级
+out_of_scope:
+  - 修改就绪标准（已在 P2-A2 冻结）
+  - 修改推广顺序（已在 P2-A3 冻结）
+  - 实际的切换执行
+
+frozen_decisions: []
+open_decisions:
+  - id: OD-401
+    summary: 佐证材料要到什么程度，才能判定第一批领域已经就绪？
+blocking_decisions:
+  - id: BD-401
+    summary: 推广执行开始之前，是否必须由门禁负责人签字确认？
+deferred_decisions: []
+
+depends_on:
+  - P2-A3
+blocks: []
+related_to:
+  - P2-A2
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/readiness-criteria.md
+  - docs/rollout/sequencing.md
+evidence_sources:
+  - docs/notes/2026-08-15-sequencing-review.md
+
+next_action: >
+  先和门禁负责人裁决 BD-401，再逐条走完就绪标准检查清单。
+
+discussion_status: NOT_STARTED
+writeback_status: NOT_APPLICABLE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-17

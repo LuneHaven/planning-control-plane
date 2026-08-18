@@ -1,0 +1,29 @@
+# Planning Control Plane — 中文示例目标仓库
+#
+# 这是一个合成的示例项目，只用于展示 PCP 在任意仓库上的工作方式。
+# 全部内容都是通用占位素材，不包含任何真实产品或业务数据。
+
+project:
+  id: demo-project-zh
+  name: 示例项目
+
+planning:
+  # 当前焦点节点；用 `pcp focus <node-id>` 切换。
+  current_focus: P2-A4
+
+authority:
+  # 可选的权威根目录，用于把链接来源分类为
+  # canonical / current-state / planning 三类。
+  canonical_roots:
+    - docs/rollout
+  current_state_roots:
+    - docs/notes
+  planning_roots:
+    - .planning
+
+output:
+  directory: .planning/dist
+
+ui:
+  # 站点的默认界面语言；浏览器里的语言切换不会修改本文件。
+  locale: zh-CN

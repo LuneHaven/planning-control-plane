@@ -1,0 +1,43 @@
+id: P2-A2
+title: 定义推广就绪标准
+type: DISCUSSION
+parent: P2-A
+status: DONE
+
+objective: >
+  就「一个领域在开始推广执行之前必须满足哪些就绪标准」达成一致，并把标准
+  冻结到规范文档里。
+
+scope:
+  - 就绪标准的定义
+out_of_scope:
+  - 各领域的具体阈值
+  - 推广顺序（由 P2-A3 负责）
+
+frozen_decisions:
+  - id: FD-211
+    summary: 就绪标准必须给出明确的佐证链接，不接受自报状态。
+    source: docs/rollout/readiness-criteria.md
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on:
+  - P2-A1
+blocks: []
+related_to:
+  - P2-A1
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/readiness-criteria.md
+evidence_sources: []
+
+next_action: >
+  已完成；标准已冻结在规范文档中。
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: NOT_APPLICABLE
+
+last_updated: 2026-08-08

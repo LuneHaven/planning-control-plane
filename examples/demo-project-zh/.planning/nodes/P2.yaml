@@ -1,0 +1,42 @@
+id: P2
+title: 产品推广
+type: PHASE
+parent: P1
+status: IMPLEMENTING
+
+objective: >
+  按领域逐个推广产品，并且让每条工作流都留在程序级冻结的范围之内。
+
+scope:
+  - 推广就绪度与推广顺序
+  - 各领域推广执行的进度跟踪
+out_of_scope:
+  - 重新打开基础阶段已定的决策
+  - 修改权威边界
+
+frozen_decisions:
+  - id: FD-101
+    summary: 推广按领域逐个进行，不做一次性全量切换。
+    source: docs/rollout/rollout-charter.md
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on:
+  - P1
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/rollout-charter.md
+evidence_sources: []
+
+next_action: >
+  先完成推广就绪度预检的讨论，再开始执行。
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: IN_PROGRESS
+
+last_updated: 2026-08-14

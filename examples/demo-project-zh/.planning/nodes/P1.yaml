@@ -1,0 +1,44 @@
+id: P1
+title: 规划基础
+type: PROGRAM
+parent: null
+status: DONE
+
+objective: >
+  搭建整个程序的规划基础：规划图、决策记录，以及规划产物与规范文档之间的
+  权威边界。
+
+scope:
+  - 规划图与工具链搭建
+  - 权威边界定义
+out_of_scope:
+  - 任何推广执行工作
+  - 产品功能决策
+
+frozen_decisions:
+  - id: FD-001
+    summary: 整个程序拆成基础阶段与推广阶段两段推进。
+    source: docs/rollout/rollout-charter.md
+  - id: FD-002
+    summary: 规划节点不覆盖规范文档，只链接它们。
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on: []
+blocks: []
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/rollout-charter.md
+evidence_sources: []
+
+next_action: >
+  基础阶段已完成；后续步骤由推广阶段负责。
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: DONE
+
+last_updated: 2026-08-02

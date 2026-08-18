@@ -1,0 +1,42 @@
+id: P2-A3
+title: 冻结推广顺序
+type: DECISION
+parent: P2-A
+status: DONE
+
+objective: >
+  确定各领域的推广先后顺序，并把该顺序决策冻结到推广顺序规范文档中。
+
+scope:
+  - 跨领域的推广先后顺序
+out_of_scope:
+  - 单个领域的就绪度评估（推迟到预检环节）
+
+frozen_decisions:
+  - id: FD-221
+    summary: 推广顺序冻结为：先文档域，再基础设施域，最后终端用户域。
+    source: docs/rollout/sequencing.md
+open_decisions: []
+blocking_decisions: []
+deferred_decisions: []
+
+depends_on:
+  - P2-A2
+blocks:
+  - P2-A4
+related_to: []
+supersedes: []
+
+canonical_sources:
+  - docs/rollout/sequencing.md
+evidence_sources:
+  - docs/notes/2026-08-15-sequencing-review.md
+
+next_action: >
+  已完成；文档域这一批的实施尚未开始。
+
+discussion_status: DONE
+writeback_status: DONE
+implementation_status: NOT_STARTED
+
+last_updated: 2026-08-15

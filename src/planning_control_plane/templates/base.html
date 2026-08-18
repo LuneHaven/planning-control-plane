@@ -86,14 +86,20 @@
         <span aria-hidden="true">☰</span><span data-i18n="site.tree">{{ t("site.tree") }}</span>
       </button>
       <span class="topbar-project">{{ project_name }}</span>
-      <a class="topbar-dashboard" href="{{ base.index }}" data-i18n="site.dashboard">{{ t("site.dashboard") }}</a>
+      {# Global utility layer, right of the topbar. The order is fixed:
+         Overview, then the language selector (V0.1.2 final polish §1/§3).
+         Both controls share one visual weight class — global navigation,
+         never the page's primary action, which stays Copy Context. #}
+      <div class="topbar-utils">
+        <a class="topbar-nav" href="{{ base.index }}"{% if is_dashboard %} aria-current="page"{% endif %} data-i18n="site.dashboard">{{ t("site.dashboard") }}</a>
       {# Runtime language switch (V0.1.2 LANG-D1). Hidden until app.js runs:
          without JavaScript the page stays complete in its build locale and
          the control would do nothing. Button labels are endonyms ("中文",
          "English") and are never translated. #}
-      <div class="lang-switch" id="lang-switch" role="group" aria-label="{{ t("lang.label") }}" data-i18n-attr="aria-label=lang.label" hidden>
-        <button type="button" class="lang-btn" data-set-locale="en" lang="en" aria-pressed="false">English</button>
-        <button type="button" class="lang-btn" data-set-locale="zh-CN" lang="zh-CN" aria-pressed="false">中文</button>
+        <div class="lang-switch" id="lang-switch" role="group" aria-label="{{ t("lang.label") }}" data-i18n-attr="aria-label=lang.label" hidden>
+          <button type="button" class="lang-btn" data-set-locale="en" lang="en" aria-pressed="false">English</button>
+          <button type="button" class="lang-btn" data-set-locale="zh-CN" lang="zh-CN" aria-pressed="false">中文</button>
+        </div>
       </div>
     </header>
     <main class="content" id="main-content">

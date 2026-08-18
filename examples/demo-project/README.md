@@ -5,6 +5,12 @@ Plane. It exists to demonstrate that PCP works on any repository and depends
 on no particular product, domain, or business data. All content is generic
 placeholder material.
 
+Its counterpart [`../demo-project-zh`](../demo-project-zh) holds **independent
+Chinese planning data** for the same kind of scenario. The two demos are not
+translations of each other: PCP's language switch localizes the interface and
+never translates planning content, so the Chinese screenshots need Chinese
+planning data of their own.
+
 ## What is here
 
 - `.planning/` — the planning graph:

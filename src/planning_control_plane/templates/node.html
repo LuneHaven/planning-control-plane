@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 {% block title %}{{ node.id }} · {{ node.title }} · {{ project_name }}{% endblock %}
 {% block content %}
+{# Breadcrumb = location, H1 = identity (V0.1.2 final polish §4/§5).
+   The trail starts at the project and keeps ancestors as `id + title`;
+   the current node contributes its id only, because the full title is
+   already the H1 one line below. The complete title of every crumb — the
+   current one included — stays available through the `title` attribute. #}
 <nav class="breadcrumb" aria-label="{{ t("node.breadcrumb") }}" data-i18n-attr="aria-label=node.breadcrumb">
   <ol>
+    <li><a class="crumb crumb--root" href="{{ base.index }}" title="{{ project_name }}">{{ project_name }}</a></li>
 {% for crumb in breadcrumb %}
     <li>
 {% if crumb.current %}
-      <span class="crumb is-current" aria-current="page"><span class="mono">{{ crumb.id }}</span> <span class="crumb-title">{{ crumb.title }}</span></span>
+      <span class="crumb is-current" aria-current="page" title="{{ crumb.id }} — {{ crumb.title }}"><span class="mono">{{ crumb.id }}</span></span>
 {% else %}
       <a class="crumb" href="{{ crumb.url }}" title="{{ crumb.id }} — {{ crumb.title }}"><span class="mono">{{ crumb.id }}</span> <span class="crumb-title">{{ crumb.title }}</span></a>
 {% endif %}

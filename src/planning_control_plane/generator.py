@@ -382,6 +382,9 @@ def _base_context(ctx: _Ctx, current_page_id: str | None) -> dict:
     project = ctx.project
     return {
         "project_name": project.config.name or project.config.id,
+        # Lets the topbar mark its own entry as the current page instead of
+        # hiding it, so the global navigation never shifts position.
+        "is_dashboard": current_page_id is None,
         "locale": ctx.locale,
         "html_lang": i18n.html_lang(ctx.locale),
         "t": i18n.translator(ctx.locale),

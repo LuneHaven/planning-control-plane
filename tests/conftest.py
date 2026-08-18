@@ -5,6 +5,8 @@
   loader (so every test exercises the on-disk contract, not in-memory data).
 * :func:`demo_root` exposes the read-only demo target repository shipped in
   ``examples/demo-project``; tests must never write into it.
+* :func:`demo_zh_root` does the same for the Chinese demo repository in
+  ``examples/demo-project-zh`` (the one the Chinese screenshots use).
 * :func:`demo_copy` provides a writable copy of the demo repository for
   commands that write (``build``, ``focus``).
 * :func:`cli` runs ``planning_control_plane.cli.main`` in-process and returns
@@ -29,6 +31,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 #: Read-only demo target repository shipped with the tool.
 DEMO_PROJECT_ROOT = REPO_ROOT / "examples" / "demo-project"
+
+#: Read-only Chinese demo target repository. Separate planning data, not a
+#: translation: PCP localizes its UI, never the planning content.
+DEMO_ZH_PROJECT_ROOT = REPO_ROOT / "examples" / "demo-project-zh"
 
 #: Minimal valid ``project.yaml`` content used when a test provides none.
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -142,6 +148,12 @@ def by_rule() -> Callable[..., list[ValidationIssue]]:
 def demo_root() -> Path:
     """Read-only demo target repository; tests must not write into it."""
     return DEMO_PROJECT_ROOT
+
+
+@pytest.fixture
+def demo_zh_root() -> Path:
+    """Read-only Chinese demo target repository; tests must not write into it."""
+    return DEMO_ZH_PROJECT_ROOT
 
 
 @pytest.fixture

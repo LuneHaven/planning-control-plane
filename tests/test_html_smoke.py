@@ -100,7 +100,8 @@ def test_all_links_and_assets_are_relative(built_site, page_name):
 
 
 def test_node_page_breadcrumb_is_clickable_path(built_site):
-    """Spec §23: every crumb carries id *and* title, not just the id."""
+    """Spec §23 + V0.1.2 final polish §4: the trail starts at the project,
+    ancestors carry id *and* title, and every crumb is a link."""
     _project, dist = built_site
     text = (dist / "nodes" / "P2-A2.html").read_text(encoding="utf-8")
 
@@ -108,19 +109,59 @@ def test_node_page_breadcrumb_is_clickable_path(built_site):
     assert match, "breadcrumb nav missing"
     breadcrumb = match.group(0)
 
+    # the project is the root of the trail and links back to the dashboard
+    assert '<a class="crumb crumb--root" href="../index.html" title="Demo Project">Demo Project</a>' in breadcrumb
+
     # crumbs read Program > Phase > Strategy > node, root first
     crumbs = re.findall(r'<span class="mono">([^<]+)</span>', breadcrumb)
     assert crumbs == ["P1", "P2", "P2-A", "P2-A2"]
     titles = re.findall(r'<span class="crumb-title">([^<]+)</span>', breadcrumb)
-    assert titles == [
-        "Program Foundation",
-        "Product Rollout",
-        "Rollout Strategy",
-        "Define Rollout Readiness Criteria",
-    ]
-    # every non-current crumb is a link, the current one is marked
+    assert titles == ["Program Foundation", "Product Rollout", "Rollout Strategy"]
+    # every ancestor crumb is a link, the current one is marked
     assert 'aria-current="page"' in breadcrumb
     assert len(re.findall(r'<a class="crumb" href="\.\./nodes/', breadcrumb)) == 3
+
+
+def test_node_page_breadcrumb_does_not_repeat_the_h1_title(built_site):
+    """VIS-AC-03: the current crumb is the id alone; the full title lives in
+    the H1 and, for hover, in the crumb's `title` attribute (VIS-AC-04)."""
+    _project, dist = built_site
+    text = (dist / "nodes" / "P2-A4.html").read_text(encoding="utf-8")
+
+    breadcrumb = re.search(r'<nav class="breadcrumb".*?</nav>', text, re.DOTALL).group(0)
+    current = re.search(r'<span class="crumb is-current".*?</span></span>', breadcrumb, re.DOTALL).group(0)
+
+    assert "Rollout Readiness Preflight" not in breadcrumb.replace(
+        'title="P2-A4 — Rollout Readiness Preflight"', ""
+    )
+    assert 'title="P2-A4 — Rollout Readiness Preflight"' in current
+    assert 'aria-current="page"' in current
+
+    # the H1 keeps id + full title (final polish §5)
+    head = re.search(r'<header class="node-head">.*?</header>', text, re.DOTALL).group(0)
+    assert '<span class="mono node-id">P2-A4</span>' in head
+    assert '<span class="node-title">Rollout Readiness Preflight</span>' in head
+
+
+def test_topbar_keeps_overview_then_language_selector(built_site):
+    """VIS-AC-01/02: fixed utility order, and Overview is never the primary
+    call to action — that weight belongs to Copy Context alone."""
+    _project, dist = built_site
+
+    for page in ("index.html", "nodes/P2-A4.html"):
+        text = (dist / page).read_text(encoding="utf-8")
+        topbar = re.search(r'<header class="topbar">.*?</header>', text, re.DOTALL).group(0)
+        utils = re.search(r'<div class="topbar-utils">.*?</div>\s*</div>', topbar, re.DOTALL).group(0)
+        assert utils.index('class="topbar-nav"') < utils.index('class="lang-switch"')
+        assert "btn--primary" not in topbar
+        assert 'class="topbar-nav"' in topbar
+
+    # the dashboard marks its own entry instead of hiding it, so the
+    # control never changes position between pages
+    index = (dist / "index.html").read_text(encoding="utf-8")
+    node = (dist / "nodes" / "P2-A4.html").read_text(encoding="utf-8")
+    assert '<a class="topbar-nav" href="index.html" aria-current="page"' in index
+    assert '<a class="topbar-nav" href="../index.html" data-i18n' in node
 
 
 def test_node_page_copy_context_button_has_aria_label(built_site):

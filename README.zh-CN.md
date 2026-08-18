@@ -2,15 +2,17 @@
 
 [English](README.md) | 简体中文
 
+**把长期规划的上下文放在仓库里，而不是放在聊天记录里。**
+
+![规划总览](docs/screenshots/dashboard-zh.png)
+
+## PCP 解决什么问题
+
 **Planning Control Plane（PCP，规划控制平面）** 是一个仓库原生的长期规划
 上下文与进度控制工具：跨分支、跨决策、跨实施阶段、跨 AI 会话地维护规划
 过程。它把原本活在——并且逐渐失效于——冗长聊天记录里的规划，变成仓库中
 持久的 **Planning Graph（规划图）**，并投影为一份确定性生成、完全离线的
 静态 dashboard。
-
-![规划总览](docs/screenshots/dashboard-zh.png)
-
-## PCP 解决什么问题
 
 长周期规划在线性会话里以一种可预期的方式失败：
 
@@ -131,8 +133,11 @@ pcp context       # 当前焦点的恢复 capsule
 ```
 
 如果想直接体验现成示例，看
-[`examples/demo-project`](examples/demo-project)——一个合成仓库，含七个
-节点的规划树，可立即 `pcp build`。
+[`examples/demo-project-zh`](examples/demo-project-zh)——一个合成仓库，
+含七个节点的中文规划树，可立即 `pcp build`；
+[`examples/demo-project`](examples/demo-project) 是同类场景的英文版本。
+两者是各自独立的规划数据，不是彼此的翻译（原因见
+[界面语言](#界面语言)）。
 
 ## CLI
 
@@ -183,34 +188,34 @@ pcp context       # 当前焦点的恢复 capsule
 
 ## 节点示例
 
-摘自 `examples/demo-project/.planning/nodes/P2-A4.yaml`：
+摘自 `examples/demo-project-zh/.planning/nodes/P2-A4.yaml`：
 
 ```yaml
 id: P2-A4
-title: Rollout Readiness Preflight
+title: 推广就绪度预检
 type: DISCUSSION
 parent: P2-A
 status: NOT_STARTED
 objective: >
-  Run the readiness preflight for the first wave ...
+  对第一批推广领域做就绪度预检 ...
 scope:
-  - First-wave readiness verification
-  - Blocking-issue escalation
+  - 第一批领域的就绪度核对
+  - 阻塞问题的上报与升级
 out_of_scope:
-  - Changing the readiness criteria (frozen at P2-A2)
+  - 修改就绪标准（已在 P2-A2 冻结）
 open_decisions:
   - id: OD-401
-    summary: How much readiness evidence is enough to declare the first wave ready?
+    summary: 佐证材料要到什么程度，才能判定第一批领域已经就绪？
 blocking_decisions:
   - id: BD-401
-    summary: Must a blocking gate owner sign off before rollout execution starts?
+    summary: 推广执行开始之前，是否必须由门禁负责人签字确认？
 depends_on: [P2-A3]
 canonical_sources:
   - docs/rollout/readiness-criteria.md
 evidence_sources:
   - docs/notes/2026-08-15-sequencing-review.md
 next_action: >
-  Resolve BD-401 with the gate owners, then walk the criteria checklist.
+  先和门禁负责人裁决 BD-401，再逐条走完就绪标准检查清单。
 discussion_status: NOT_STARTED
 writeback_status: N/A
 implementation_status: N/A
@@ -219,7 +224,7 @@ last_updated: 2026-08-17
 
 ## Dashboard 与分层展开
 
-![节点详情](docs/screenshots/node-zh-resume.png)
+![节点详情](docs/screenshots/node-zh.png)
 
 - **侧栏**承载完整规划树——状态、焦点标记、展开/折叠。
 - **Dashboard** 只回答四个问题：现在在哪（当前焦点）、是否被阻塞（需要
@@ -244,6 +249,8 @@ pcp context --full     # 追加祖先摘要、关联节点、已延期决策
 已冻结决策、范围边界、未决与阻塞决策、来源与三轨状态——新会话需要的
 一切，以及它不该看到的之外的任何东西都不会出现。节点页的「恢复这项
 工作」面板展示同一份 capsule，并带复制按钮。
+
+![恢复这项工作](docs/screenshots/node-zh-resume.png)
 
 ## 推荐的 AI Agent 工作流
 
@@ -279,6 +286,15 @@ pcp context --full     # 追加祖先摘要、关联节点、已延期决策
   「本地化文案 + 原始枚举」（如 `未开始 NOT_STARTED`），机器可读的值始终
   可搜索。
 
+> 语言切换只负责切换 PCP 的界面语言，
+> 不会自动翻译项目自身的规划内容。
+> 规划数据始终保持作者原文。
+
+正因为存在这条边界，本仓库提供两份示例项目而不是一份：
+[`examples/demo-project`](examples/demo-project) 存放英文规划数据，
+[`examples/demo-project-zh`](examples/demo-project-zh) 存放中文规划数据。
+本文档的中文截图来自中文示例项目，而不是把英文示例切到中文界面得到的。
+
 ## 架构
 
 | 层 | 位置 | 归属 |
@@ -301,9 +317,10 @@ PCP 只对**规划结构与规划进度**具有权威性。产品、治理、架
 
 ## 当前状态
 
-Alpha（`0.1.2`）。引擎、CLI、校验器、capsule 与双语界面已可用，并有
-自动化测试覆盖（220 个测试）。PCP **尚未发布到 PyPI**——请按上文从
-源码安装。公开仓库也尚未建立。
+**当前版本：V0.1.2。** V0.1.2 已达到可用 MVP 阶段，并完成真实项目
+Dogfood 验证：引擎、CLI、校验器、capsule 与双语界面均已可用，并有自动化
+测试覆盖（229 个测试）。PCP **尚未发布到 PyPI**——请按上文从源码安装。
+公开仓库也尚未建立。
 
 ## 路线图
 
@@ -313,6 +330,14 @@ Alpha（`0.1.2`）。引擎、CLI、校验器、capsule 与双语界面已可用
 已命名但未实现的扩展点（暂无接口）：`pcp prompt`、`pcp close`、
 `pcp reopen`、Git/GitHub 适配器、Claude Code / Codex / ChatGPT 适配器、
 多项目工作区。
+
+V0.2 候选项——**候选，未承诺**；下列条目都尚未实现，也都不构成承诺：
+
+- close / reopen 工作流
+- prompt 生成
+- 集成状态
+- 搜索 / 过滤
+- 多项目工作区
 
 ## 参与贡献
 
