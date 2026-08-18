@@ -1,28 +1,53 @@
 <!DOCTYPE html>
-<html lang="{{ html_lang }}">
+<html lang="{{ html_lang }}" data-locale="{{ locale }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+{# The document title mixes the project name with the tool name; the tool
+   name is identical in every supported locale and the rest is user data,
+   so the title needs no runtime switch. #}
   <title>{% block title %}{{ project_name }} · {{ t("site.tool") }}{% endblock %}</title>
+{# Locale boot (V0.1.2): apply a stored browser language preference before
+   first paint, so the zh-CN line-height and the raw-enum chips render in
+   the reader's locale immediately. Presentation only — it reads one
+   localStorage key (same key app.js uses) and never writes anything.
+   The tiny locale list is validated again by app.js against the payload. #}
+  <script>
+  (function () {
+    "use strict";
+    try {
+      var pref = window.localStorage.getItem(
+        "pcp.locale:" + location.pathname.replace(/[^/]*$/, "").replace(/nodes\/$/, "")
+      );
+      if (pref === "en" || pref === "zh-CN") {
+        var root = document.documentElement;
+        if (root.getAttribute("data-locale") !== pref) {
+          root.lang = pref;
+          root.setAttribute("data-locale", pref);
+        }
+      }
+    } catch (err) { /* storage unavailable (private mode, file:// policy): keep the build locale */ }
+  }());
+  </script>
   <link rel="stylesheet" href="{{ base.assets }}style.css">
 </head>
 <body>
-<a class="skip-link" href="#main-content">{{ t("site.skip") }}</a>
+<a class="skip-link" href="#main-content" data-i18n="site.skip">{{ t("site.skip") }}</a>
 <div class="layout">
-  <aside class="sidebar" id="sidebar" aria-label="{{ t("site.sidebar_tree_label") }}">
+  <aside class="sidebar" id="sidebar" aria-label="{{ t("site.sidebar_tree_label") }}" data-i18n-attr="aria-label=site.sidebar_tree_label">
     <div class="sidebar-head">
       <a class="sidebar-project" href="{{ base.index }}">{{ project_name }}</a>
-      <p class="sidebar-tool">{{ t("site.tool") }}</p>
+      <p class="sidebar-tool" data-i18n="site.tool">{{ t("site.tool") }}</p>
     </div>
 {% if tree %}
     <div class="tree-controls">
-      <button type="button" class="tree-control" data-tree-action="expand">{{ t("site.expand_all") }}</button>
-      <button type="button" class="tree-control" data-tree-action="collapse">{{ t("site.collapse_all") }}</button>
+      <button type="button" class="tree-control" data-tree-action="expand" data-i18n="site.expand_all">{{ t("site.expand_all") }}</button>
+      <button type="button" class="tree-control" data-tree-action="collapse" data-i18n="site.collapse_all">{{ t("site.collapse_all") }}</button>
     </div>
 {% endif %}
-    <nav class="sidebar-nav" aria-label="{{ t("site.sidebar_tree_label") }}">
+    <nav class="sidebar-nav" aria-label="{{ t("site.sidebar_tree_label") }}" data-i18n-attr="aria-label=site.sidebar_tree_label">
 {% if tree %}
-      <ul role="tree" aria-label="{{ t("site.sidebar_tree_label") }}" class="tree" id="planning-tree">
+      <ul role="tree" aria-label="{{ t("site.sidebar_tree_label") }}" data-i18n-attr="aria-label=site.sidebar_tree_label" class="tree" id="planning-tree">
 {% for item in tree recursive %}
         <li role="treeitem" class="treeitem{% if item.is_current %} is-current-page{% endif %}{% if item.is_focus %} is-focus{% endif %}" data-node-id="{{ item.id }}" data-status="{{ item.status.raw }}"{% if item.children %} aria-expanded="true"{% endif %}{% if item.is_current %} data-current-page="true"{% endif %}>
           <div class="treeitem-row">
@@ -35,9 +60,9 @@
               <span class="tree-line">
                 <span class="tree-id">{{ item.id }}</span>
 {% if item.is_focus %}
-                <span class="focus-pill" title="{{ t("node.focus_title") }}">{{ t("node.focus_flag") }}</span>
+                <span class="focus-pill" title="{{ t("node.focus_title") }}" data-i18n="node.focus_flag" data-i18n-attr="title=node.focus_title">{{ t("node.focus_flag") }}</span>
 {% endif %}
-                <span class="badge" data-status="{{ item.status.raw }}"><span class="shape" aria-hidden="true">{{ item.status.shape }}</span>{{ item.status.label }}</span>
+                <span class="badge" data-status="{{ item.status.raw }}"><span class="shape" aria-hidden="true">{{ item.status.shape }}</span><span{% if item.status.i18n %} data-i18n="{{ item.status.i18n }}"{% endif %}>{{ item.status.label }}</span></span>
               </span>
               <span class="tree-title">{{ item.title }}</span>
             </a>
@@ -51,29 +76,41 @@
 {% endfor %}
       </ul>
 {% else %}
-      <p class="sidebar-empty">{{ t("site.no_nodes") }}</p>
+      <p class="sidebar-empty" data-i18n="site.no_nodes">{{ t("site.no_nodes") }}</p>
 {% endif %}
     </nav>
   </aside>
   <div class="frame">
     <header class="topbar">
       <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="false">
-        <span aria-hidden="true">☰</span><span>{{ t("site.tree") }}</span>
+        <span aria-hidden="true">☰</span><span data-i18n="site.tree">{{ t("site.tree") }}</span>
       </button>
       <span class="topbar-project">{{ project_name }}</span>
-      <a class="topbar-dashboard" href="{{ base.index }}">{{ t("site.dashboard") }}</a>
+      <a class="topbar-dashboard" href="{{ base.index }}" data-i18n="site.dashboard">{{ t("site.dashboard") }}</a>
+      {# Runtime language switch (V0.1.2 LANG-D1). Hidden until app.js runs:
+         without JavaScript the page stays complete in its build locale and
+         the control would do nothing. Button labels are endonyms ("中文",
+         "English") and are never translated. #}
+      <div class="lang-switch" id="lang-switch" role="group" aria-label="{{ t("lang.label") }}" data-i18n-attr="aria-label=lang.label" hidden>
+        <button type="button" class="lang-btn" data-set-locale="en" lang="en" aria-pressed="false">English</button>
+        <button type="button" class="lang-btn" data-set-locale="zh-CN" lang="zh-CN" aria-pressed="false">中文</button>
+      </div>
     </header>
     <main class="content" id="main-content">
 {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">
-      <p class="footer-title">{{ t("site.tool") }}</p>
-      <p>{{ t("site.footer.boundary") }}</p>
-      <p>{{ t("site.footer.ownership") }}</p>
+      <p class="footer-title" data-i18n="site.tool">{{ t("site.tool") }}</p>
+      <p data-i18n="site.footer.boundary">{{ t("site.footer.boundary") }}</p>
+      <p data-i18n="site.footer.ownership">{{ t("site.footer.ownership") }}</p>
     </footer>
   </div>
 </div>
 <p class="copy-status" role="status" aria-live="polite"></p>
+{# Single translation source (V0.1.2 §5): the Python dictionaries from
+   planning_control_plane.i18n, serialized once per page. app.js reads this
+   at runtime; there is no second translation table in JavaScript. #}
+<script type="application/json" id="pcp-i18n">{{ i18n_payload | tojson }}</script>
 <script src="{{ base.assets }}app.js"></script>
 </body>
 </html>

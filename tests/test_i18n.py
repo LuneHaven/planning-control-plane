@@ -140,7 +140,7 @@ def test_unknown_locale_falls_back_with_a_warning_and_still_builds(
     assert code == EXIT_OK
     assert "unknown-ui-locale" in out
     page = (root / ".planning" / "dist" / "index.html").read_text(encoding="utf-8")
-    assert '<html lang="en">' in page
+    assert '<html lang="en" data-locale="en">' in page
 
 
 def test_ui_section_is_not_an_unknown_top_level_key(make_project, tmp_path, node_dict, by_rule):

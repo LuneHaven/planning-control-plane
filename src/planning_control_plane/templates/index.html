@@ -2,27 +2,27 @@
 {% block title %}{{ project_name }} · {{ t("site.tool") }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>{{ t("dash.title") }}</h1>
-  <p class="page-sub">{{ t("dash.subtitle") }}</p>
+  <h1 data-i18n="dash.title">{{ t("dash.title") }}</h1>
+  <p class="page-sub" data-i18n="dash.subtitle">{{ t("dash.subtitle") }}</p>
 </div>
 
 {# ---------------------------------------------------------- current focus #}
 {% if focus.set and not focus.missing %}
 <section class="focus-card" aria-labelledby="focus-heading">
   <div class="focus-card-head">
-    <p class="focus-eyebrow"><span class="focus-pill">{{ t("node.focus_flag") }}</span><span class="eyebrow-label" id="focus-heading">{{ t("dash.focus") }}</span></p>
+    <p class="focus-eyebrow"><span class="focus-pill" title="{{ t("node.focus_title") }}" data-i18n="node.focus_flag" data-i18n-attr="title=node.focus_title">{{ t("node.focus_flag") }}</span><span class="eyebrow-label" id="focus-heading" data-i18n="dash.focus">{{ t("dash.focus") }}</span></p>
     <h2 class="focus-node"><a href="{{ focus.url }}"><span class="mono focus-node-id">{{ focus.id }}</span><span class="focus-node-title">{{ focus.title }}</span></a></h2>
     <p class="focus-line">
-      <span class="badge badge--lg" data-status="{{ focus.status.raw }}"><span class="shape" aria-hidden="true">{{ focus.status.shape }}</span>{{ focus.status.label }}{% if focus.status.label != focus.status.raw %} <span class="badge-raw mono">{{ focus.status.raw }}</span>{% endif %}</span>
+      <span class="badge badge--lg" data-status="{{ focus.status.raw }}"><span class="shape" aria-hidden="true">{{ focus.status.shape }}</span><span{% if focus.status.i18n %} data-i18n="{{ focus.status.i18n }}"{% endif %}>{{ focus.status.label }}</span>{% if focus.status.i18n %} <span class="badge-raw mono">{{ focus.status.raw }}</span>{% endif %}</span>
 {% if not attention.any %}
-      <span class="chip chip--ok">{{ t("dash.no_blockers") }}</span>
+      <span class="chip chip--ok" data-i18n="dash.no_blockers">{{ t("dash.no_blockers") }}</span>
 {% endif %}
 {% if focus.last_updated %}
-      <span class="muted">{{ t("node.updated") }} <span class="mono">{{ focus.last_updated }}</span></span>
+      <span class="muted"><span data-i18n="node.updated">{{ t("node.updated") }}</span> <span class="mono">{{ focus.last_updated }}</span></span>
 {% endif %}
     </p>
 {% if focus.parent_path %}
-    <p class="focus-path"><span class="focus-path-label">{{ t("dash.parent_path") }}</span>
+    <p class="focus-path"><span class="focus-path-label" data-i18n="dash.parent_path">{{ t("dash.parent_path") }}</span>
 {% for crumb in focus.parent_path %}
       <a class="mono" href="{{ crumb.url }}" title="{{ crumb.id }} — {{ crumb.title }}">{{ crumb.id }}</a>{% if not loop.last %}<span class="sep" aria-hidden="true">›</span>{% endif %}
 {% endfor %}
@@ -31,58 +31,58 @@
   </div>
 
   <div class="focus-next">
-    <h3>{{ t("node.next_action") }}</h3>
+    <h3 data-i18n="node.next_action">{{ t("node.next_action") }}</h3>
 {% if focus.next_action %}
     <p class="prose">{{ focus.next_action }}</p>
 {% else %}
-    <p class="empty-state">{{ t("node.next_action.empty") }}</p>
+    <p class="empty-state" data-i18n="node.next_action.empty">{{ t("node.next_action.empty") }}</p>
 {% endif %}
   </div>
 
   <dl class="tracks">
 {% for track in focus.tracks %}
     <div class="track">
-      <dt>{{ track.label }}</dt>
-      <dd><span class="track-badge" data-track="{{ track.raw }}"><span class="shape" aria-hidden="true">{{ track.shape }}</span>{{ track.status_label }}{% if track.status_label != track.raw %} <span class="badge-raw mono">{{ track.raw }}</span>{% endif %}</span></dd>
+      <dt data-i18n="node.track.{{ track.key }}">{{ track.label }}</dt>
+      <dd><span class="track-badge" data-track="{{ track.raw }}"><span class="shape" aria-hidden="true">{{ track.shape }}</span><span{% if track.i18n %} data-i18n="{{ track.i18n }}"{% endif %}>{{ track.status_label }}</span>{% if track.i18n %} <span class="badge-raw mono">{{ track.raw }}</span>{% endif %}</span></dd>
     </div>
 {% endfor %}
   </dl>
 
   <div class="focus-actions">
-    <button type="button" class="btn btn--primary" data-copy-from="focus-capsule" data-copied-label="{{ t("action.copied") }}" aria-label="{{ t("action.copy_context.aria") }}">{{ t("action.copy_context") }}</button>
-    <button type="button" class="btn" data-copy-value="{{ focus.id }}" data-copied-label="{{ t("action.copied") }}" aria-label="{{ t("action.copy_id.aria") }}">{{ t("action.copy_id") }}</button>
+    <button type="button" class="btn btn--primary" data-copy-from="focus-capsule" data-copied-label="{{ t("action.copied") }}" aria-label="{{ t("action.copy_context.aria") }}" data-i18n="action.copy_context" data-i18n-attr="aria-label=action.copy_context.aria; data-copied-label=action.copied">{{ t("action.copy_context") }}</button>
+    <button type="button" class="btn" data-copy-value="{{ focus.id }}" data-copied-label="{{ t("action.copied") }}" aria-label="{{ t("action.copy_id.aria") }}" data-i18n="action.copy_id" data-i18n-attr="aria-label=action.copy_id.aria; data-copied-label=action.copied">{{ t("action.copy_id") }}</button>
     <a class="btn btn--link" href="{{ focus.url }}">{{ focus.id }} →</a>
   </div>
   <div class="copy-fallback" hidden>
-    <p class="hint">{{ t("action.copy_fallback.hint") }}</p>
-    <textarea readonly aria-label="{{ t("action.copy_fallback.aria") }}">{{ focus.capsule }}</textarea>
+    <p class="hint" data-i18n="action.copy_fallback.hint">{{ t("action.copy_fallback.hint") }}</p>
+    <textarea readonly aria-label="{{ t("action.copy_fallback.aria") }}" data-i18n-attr="aria-label=action.copy_fallback.aria">{{ focus.capsule }}</textarea>
   </div>
   <pre id="focus-capsule" class="visually-hidden">{{ focus.capsule }}</pre>
 </section>
 {% elif focus.missing %}
 <section class="panel focus-panel--empty" aria-labelledby="focus-heading">
-  <h2 id="focus-heading">{{ t("dash.focus") }}</h2>
-  <p class="empty-state">{{ t("dash.focus.missing", id=focus.id) }}</p>
-  <p class="empty-hint">{{ t("dash.focus.missing_hint") }}</p>
+  <h2 id="focus-heading" data-i18n="dash.focus">{{ t("dash.focus") }}</h2>
+  <p class="empty-state" data-i18n="dash.focus.missing" data-i18n-args='{{ {"id": focus.id} | tojson }}'>{{ t("dash.focus.missing", id=focus.id) }}</p>
+  <p class="empty-hint" data-i18n="dash.focus.missing_hint">{{ t("dash.focus.missing_hint") }}</p>
 </section>
 {% else %}
 <section class="panel focus-panel--empty" aria-labelledby="focus-heading">
-  <h2 id="focus-heading">{{ t("dash.focus") }}</h2>
-  <p class="empty-state">{{ t("dash.focus.none") }}</p>
-  <p class="empty-hint">{{ t("dash.focus.none_hint") }}</p>
+  <h2 id="focus-heading" data-i18n="dash.focus">{{ t("dash.focus") }}</h2>
+  <p class="empty-state" data-i18n="dash.focus.none">{{ t("dash.focus.none") }}</p>
+  <p class="empty-hint" data-i18n="dash.focus.none_hint">{{ t("dash.focus.none_hint") }}</p>
 </section>
 {% endif %}
 
 {# -------------------------------------------------------- needs attention #}
 {% if attention.any %}
 <section class="panel panel--exception" id="attention" aria-labelledby="attention-heading">
-  <h2 id="attention-heading"><span class="exception-icon" aria-hidden="true">▲</span>{{ t("dash.attention") }}</h2>
+  <h2 id="attention-heading"><span class="exception-icon" aria-hidden="true">▲</span><span data-i18n="dash.attention">{{ t("dash.attention") }}</span></h2>
 {% if attention.blocking_rows %}
-  <h3>{{ t("dash.attention.blocking") }} <span class="count">{{ attention.blocking_count }}</span></h3>
+  <h3><span data-i18n="dash.attention.blocking">{{ t("dash.attention.blocking") }}</span> <span class="count">{{ attention.blocking_count }}</span></h3>
   <div class="table-scroll">
     <table class="table">
       <thead>
-        <tr><th scope="col">{{ t("dash.col.node") }}</th><th scope="col">{{ t("dash.col.decision") }}</th><th scope="col">{{ t("dash.col.summary") }}</th></tr>
+        <tr><th scope="col" data-i18n="dash.col.node">{{ t("dash.col.node") }}</th><th scope="col" data-i18n="dash.col.decision">{{ t("dash.col.decision") }}</th><th scope="col" data-i18n="dash.col.summary">{{ t("dash.col.summary") }}</th></tr>
       </thead>
       <tbody>
 {% for row in attention.blocking_rows %}
@@ -99,22 +99,22 @@
   </div>
 {% endif %}
 {% if attention.blocked_nodes %}
-  <h3>{{ t("dash.attention.blocked") }} <span class="count">{{ attention.blocked_nodes | length }}</span></h3>
+  <h3><span data-i18n="dash.attention.blocked">{{ t("dash.attention.blocked") }}</span> <span class="count">{{ attention.blocked_nodes | length }}</span></h3>
   <ul class="ref-list">
 {% for ref in attention.blocked_nodes %}
-    <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span></li>
+    <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
 {% endfor %}
   </ul>
 {% endif %}
 {% if attention.deferred_deps %}
-  <h3>{{ t("dash.attention.deferred_deps") }} <span class="count">{{ attention.deferred_deps | length }}</span></h3>
+  <h3><span data-i18n="dash.attention.deferred_deps">{{ t("dash.attention.deferred_deps") }}</span> <span class="count">{{ attention.deferred_deps | length }}</span></h3>
   <ul class="ref-list">
 {% for ref in attention.deferred_deps %}
     <li>
 {% if ref.known %}
-      <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span>
+      <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
 {% else %}
-      <span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted">{{ t("node.rel.unknown") }}</span>
+      <span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted" data-i18n="node.rel.unknown">{{ t("node.rel.unknown") }}</span>
 {% endif %}
     </li>
 {% endfor %}
@@ -126,8 +126,8 @@
 {# ------------------------------------------------------------ focus branch #}
 {% if branch.set %}
 <section class="panel" aria-labelledby="branch-heading">
-  <h2 id="branch-heading">{{ t("dash.branch") }}</h2>
-  <p class="muted panel-hint">{{ t("dash.branch.hint") }}</p>
+  <h2 id="branch-heading" data-i18n="dash.branch">{{ t("dash.branch") }}</h2>
+  <p class="muted panel-hint" data-i18n="dash.branch.hint">{{ t("dash.branch.hint") }}</p>
 {% if branch.lineage %}
   <p class="branch-lineage">
 {% for crumb in branch.lineage %}
@@ -137,29 +137,29 @@
   </p>
 {% endif %}
 {% if branch.siblings %}
-  <h3>{{ t("dash.branch.siblings") }}</h3>
+  <h3 data-i18n="dash.branch.siblings">{{ t("dash.branch.siblings") }}</h3>
   <ul class="branch-list">
 {% for ref in branch.siblings %}
     <li class="branch-item{% if ref.is_current %} is-current{% endif %}">
       <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
-      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span>
+      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
     </li>
 {% endfor %}
   </ul>
 {% endif %}
 {% if branch.children %}
-  <h3>{{ t("dash.branch.children") }}</h3>
+  <h3 data-i18n="dash.branch.children">{{ t("dash.branch.children") }}</h3>
   <ul class="branch-list">
 {% for ref in branch.children %}
     <li class="branch-item">
       <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
-      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span>
+      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
     </li>
 {% endfor %}
   </ul>
 {% endif %}
 {% if not branch.siblings and not branch.children %}
-  <p class="empty-state">{{ t("dash.branch.empty") }}</p>
+  <p class="empty-state" data-i18n="dash.branch.empty">{{ t("dash.branch.empty") }}</p>
 {% endif %}
 </section>
 {% endif %}
@@ -167,55 +167,55 @@
 {# --------------------------------------------------- progress + ready queue #}
 <div class="dash-columns">
   <section class="panel" aria-labelledby="progress-heading">
-    <h2 id="progress-heading">{{ t("dash.progress") }}</h2>
+    <h2 id="progress-heading" data-i18n="dash.progress">{{ t("dash.progress") }}</h2>
     <div class="stats">
-      <div class="stat"><span class="stat-value">{{ progress.total }}</span><span class="stat-label">{{ t("dash.progress.total") }}</span></div>
-      <div class="stat"><span class="stat-value">{{ progress.done }}</span><span class="stat-label">{{ t("dash.progress.done") }}</span></div>
-      <div class="stat"><span class="stat-value">{{ progress.active }}</span><span class="stat-label">{{ t("dash.progress.active") }}</span></div>
-      <div class="stat stat--blocked"><span class="stat-value">{{ progress.blocked }}</span><span class="stat-label">{{ t("dash.progress.blocked") }}</span></div>
-      <div class="stat"><span class="stat-value">{{ progress.pending }}</span><span class="stat-label">{{ t("dash.progress.pending") }}</span></div>
-      <div class="stat"><span class="stat-value">{{ progress.deferred }}</span><span class="stat-label">{{ t("dash.progress.deferred") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.total }}</span><span class="stat-label" data-i18n="dash.progress.total">{{ t("dash.progress.total") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.done }}</span><span class="stat-label" data-i18n="dash.progress.done">{{ t("dash.progress.done") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.active }}</span><span class="stat-label" data-i18n="dash.progress.active">{{ t("dash.progress.active") }}</span></div>
+      <div class="stat stat--blocked"><span class="stat-value">{{ progress.blocked }}</span><span class="stat-label" data-i18n="dash.progress.blocked">{{ t("dash.progress.blocked") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.pending }}</span><span class="stat-label" data-i18n="dash.progress.pending">{{ t("dash.progress.pending") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.deferred }}</span><span class="stat-label" data-i18n="dash.progress.deferred">{{ t("dash.progress.deferred") }}</span></div>
     </div>
-    <p class="progress-note">{{ t("dash.progress.note") }}</p>
+    <p class="progress-note" data-i18n="dash.progress.note">{{ t("dash.progress.note") }}</p>
   </section>
 
   <section class="panel" aria-labelledby="queue-heading">
-    <h2 id="queue-heading">{{ t("dash.queue") }}</h2>
-    <p class="muted panel-hint">{{ t("dash.queue.hint") }}</p>
+    <h2 id="queue-heading" data-i18n="dash.queue">{{ t("dash.queue") }}</h2>
+    <p class="muted panel-hint" data-i18n="dash.queue.hint">{{ t("dash.queue.hint") }}</p>
 {% if next_queue %}
     <ul class="ref-list">
 {% for ref in next_queue %}
-      <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span></li>
+      <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
 {% endfor %}
     </ul>
 {% else %}
-    <p class="empty-state">{{ t("dash.queue.empty") }}</p>
+    <p class="empty-state" data-i18n="dash.queue.empty">{{ t("dash.queue.empty") }}</p>
 {% endif %}
   </section>
 </div>
 
 {# -------------------------------------------------------- recently updated #}
 <section class="panel" aria-labelledby="recent-heading">
-  <h2 id="recent-heading">{{ t("dash.recent") }}</h2>
+  <h2 id="recent-heading" data-i18n="dash.recent">{{ t("dash.recent") }}</h2>
 {% if recently_updated %}
   <div class="table-scroll">
     <table class="table">
       <thead>
-        <tr><th scope="col">{{ t("dash.col.updated") }}</th><th scope="col">{{ t("dash.col.node") }}</th><th scope="col">{{ t("dash.col.status") }}</th></tr>
+        <tr><th scope="col" data-i18n="dash.col.updated">{{ t("dash.col.updated") }}</th><th scope="col" data-i18n="dash.col.node">{{ t("dash.col.node") }}</th><th scope="col" data-i18n="dash.col.status">{{ t("dash.col.status") }}</th></tr>
       </thead>
       <tbody>
 {% for row in recently_updated %}
         <tr>
           <td class="mono nowrap">{{ row.date }}</td>
           <td><a href="{{ row.node.url }}"><span class="mono">{{ row.node.id }}</span> {{ row.node.title }}</a></td>
-          <td><span class="badge" data-status="{{ row.node.status.raw }}"><span class="shape" aria-hidden="true">{{ row.node.status.shape }}</span>{{ row.node.status.label }}</span></td>
+          <td><span class="badge" data-status="{{ row.node.status.raw }}"><span class="shape" aria-hidden="true">{{ row.node.status.shape }}</span><span{% if row.node.status.i18n %} data-i18n="{{ row.node.status.i18n }}"{% endif %}>{{ row.node.status.label }}</span></span></td>
         </tr>
 {% endfor %}
       </tbody>
     </table>
   </div>
 {% else %}
-  <p class="empty-state">{{ t("dash.recent.empty") }}</p>
+  <p class="empty-state" data-i18n="dash.recent.empty">{{ t("dash.recent.empty") }}</p>
 {% endif %}
 </section>
 {% endblock %}

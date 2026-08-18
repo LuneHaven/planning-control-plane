@@ -1,29 +1,38 @@
-"""Presentation-only localization for the generated HTML (UI V0.1.1).
+"""Presentation-only localization for the generated HTML (UI V0.1.1/V0.1.2).
 
 Scope, deliberately narrow:
 
 * This module localizes **human-facing UI presentation only**. It never
   touches planning data. Node ids, decision ids, stored enum values, YAML
   values, ``pcp context`` capsule text and the machine-facing enums printed
-  by the CLI keep their original values everywhere (Owner Decision UI-D2).
-* The locale is an explicit **UI projection configuration** read from
-  ``.planning/project.yaml`` under ``ui.locale`` (Owner Decision UI-D1). It
-  is never inferred from the project name, from CJK characters in the data,
-  from the OS locale or from environment variables, so the same planning
-  source plus the same config always renders byte-identical output.
+  by the CLI keep their original values everywhere (Owner Decision UI-D2 /
+  LANG-D3).
+* ``ui.locale`` in ``.planning/project.yaml`` selects the **default** locale
+  of the generated site (Owner Decision LANG-D2). Since V0.1.2 the page also
+  embeds :data:`TRANSLATIONS` verbatim (see :func:`runtime_payload`) so the
+  browser can switch between locales at runtime — presentation only, no
+  rebuild, no YAML write-back (LANG-D1). The runtime preference lives in
+  ``localStorage`` and can never reach the generated files (LANG-D4).
+* The locale is never inferred from the project name, from CJK characters in
+  the data, from the OS locale or from environment variables, so the same
+  planning source plus the same config always renders byte-identical output.
 
-Only two locales exist in V0.1.1: ``en`` (default) and ``zh-CN``. There is
-no gettext, no Babel, no external locale files and no third-party i18n
-framework — just the two dictionaries below, which are required to carry
-exactly the same key set (enforced by the test suite).
+Only two locales exist: ``en`` (default) and ``zh-CN``. There is no gettext,
+no Babel, no external locale files and no third-party i18n framework — just
+the two dictionaries below, which are required to carry exactly the same key
+set (enforced by the test suite). The dictionaries are the **single
+translation source**: the generator serializes them into every page and the
+shipped ``app.js`` consumes that payload; no second translation table exists
+on the JavaScript side (LANG architecture rule, spec §5).
 
-Status handling follows UI-D2:
+Status handling follows UI-D2/LANG-D3:
 
 * compact places (sidebar, tables, queues) show the localized label only;
 * the node header and the three-track panel show ``<localized> <RAW_ENUM>``
   so the machine-facing value stays visible and greppable;
 * for ``en`` the localized label *is* the raw enum, so English pages keep
-  the V0.1 wording and never print a value twice.
+  the V0.1 wording and never print a value twice (the duplicated raw chip is
+  hidden through ``html[data-locale="en"]`` in the stylesheet).
 """
 
 from __future__ import annotations
@@ -39,8 +48,11 @@ __all__ = [
     "html_lang",
     "is_supported",
     "resolve_locale",
+    "runtime_payload",
+    "status_key",
     "status_label",
     "status_shape",
+    "track_key",
     "track_label",
     "track_shape",
     "translator",
@@ -49,7 +61,8 @@ __all__ = [
 #: Locale used when ``ui.locale`` is absent or unusable.
 DEFAULT_LOCALE = "en"
 
-#: Locales V0.1.1 ships. Order is stable for error messages.
+#: Locales PCP ships. Order is stable for error messages and for the
+#: runtime language selector rendered in the topbar.
 SUPPORTED_LOCALES = ("en", "zh-CN")
 
 #: Shape glyph per overall status, so status is never colour-only
@@ -145,7 +158,7 @@ _EN: dict[str, str] = {
     "node.objective.empty": "No objective recorded.",
     "node.next_action": "Next Action",
     "node.next_action.empty": "No next action recorded.",
-    "node.scope": "Scope Guard",
+    "node.scope": "Scope Boundary",
     "node.scope.hint": "The boundary of this round. Anything outside it belongs to another node.",
     "node.scope.in": "In scope this round",
     "node.scope.out": "Out of scope this round",
@@ -187,6 +200,7 @@ _EN: dict[str, str] = {
     "node.resume.size": "{lines} lines · {size}",
     "node.resume.show": "Show full capsule",
     # ---------------------------------------------------------- actions
+    "lang.label": "Language",
     "action.copy_context": "Copy Context",
     "action.copy_context.aria": "Copy the context capsule to the clipboard",
     "action.copy_id": "Copy ID",
@@ -275,9 +289,9 @@ _ZH_CN: dict[str, str] = {
     "node.focus_title": "当前焦点",
     "node.objective": "目标",
     "node.objective.empty": "未记录目标。",
-    "node.next_action": "下一步动作",
-    "node.next_action.empty": "未记录下一步动作。",
-    "node.scope": "范围护栏",
+    "node.next_action": "下一步行动",
+    "node.next_action.empty": "未记录下一步行动。",
+    "node.scope": "范围边界",
     "node.scope.hint": "本轮的边界；边界之外的内容属于其他节点。",
     "node.scope.in": "本轮要做",
     "node.scope.out": "本轮不做",
@@ -286,7 +300,7 @@ _ZH_CN: dict[str, str] = {
     "node.decisions.blocking": "阻塞决策",
     "node.decisions.open": "未决决策",
     "node.decisions.open.empty": "没有未决决策。",
-    "node.decisions.frozen": "冻结决策",
+    "node.decisions.frozen": "已冻结决策",
     "node.decisions.frozen.own": "本节点",
     "node.decisions.frozen.empty": "本节点没有冻结决策。",
     "node.decisions.inherited": "继承自祖先",
@@ -319,6 +333,7 @@ _ZH_CN: dict[str, str] = {
     "node.resume.size": "{lines} 行 · {size}",
     "node.resume.show": "展开完整 capsule",
     # ---------------------------------------------------------- actions
+    "lang.label": "语言",
     "action.copy_context": "复制上下文",
     "action.copy_context.aria": "把 context capsule 复制到剪贴板",
     "action.copy_id": "复制 ID",
@@ -402,6 +417,42 @@ def status_label(locale: str, status: str) -> str:
     and leaves the verdict to ``pcp validate``.
     """
     return translator(locale)(f"status.{status}") if f"status.{status}" in _EN else status
+
+
+def status_key(status: str) -> str | None:
+    """Translation key that re-labels *status* at runtime, or ``None``.
+
+    The generator stamps this key on status badges (``data-i18n``) so the
+    browser can switch labels without a rebuild (LANG-D1). ``None`` for
+    values outside the controlled enum means: render the stored value as
+    plain text — the runtime translator must never overwrite data it has no
+    translation for (LANG-D3).
+    """
+    key = f"status.{status}"
+    return key if key in _EN else None
+
+
+def track_key(value: str) -> str | None:
+    """Translation key for a track status, or ``None`` for unknown values."""
+    key = f"track.{value}"
+    return key if key in _EN else None
+
+
+def runtime_payload(locale: str) -> dict[str, object]:
+    """JSON-ready payload embedded in every generated page (V0.1.2).
+
+    ``default`` is the project's ``ui.locale`` (LANG-D2) — the locale a page
+    renders in before JavaScript runs and the fallback when the browser has
+    no stored preference. ``messages`` is :data:`TRANSLATIONS` verbatim, so
+    the Python dictionaries remain the single translation source; the page
+    serializes them once and ``app.js`` reads them at runtime (spec §5).
+    Key order is fixed by construction, keeping the output deterministic.
+    """
+    return {
+        "default": resolve_locale(locale),
+        "locales": list(SUPPORTED_LOCALES),
+        "messages": {name: TRANSLATIONS[name] for name in SUPPORTED_LOCALES},
+    }
 
 
 def track_label(locale: str, status: str) -> str:

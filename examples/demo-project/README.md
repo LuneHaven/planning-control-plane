@@ -33,3 +33,6 @@ pcp build --check   # verify dist matches a fresh deterministic build
 ```
 
 Then open `.planning/dist/index.html` directly (double-click; fully offline).
+The top bar carries an `English / 中文` toggle — switching is instant,
+stored in the browser only, and never modifies the planning data or
+`project.yaml`.

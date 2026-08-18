@@ -585,6 +585,49 @@ th {
   text-decoration: none;
 }
 
+/* ------------------------------------------------------ language switcher */
+
+/* Compact segmented control, topbar right (V0.1.2). Deliberately quiet:
+   neutral chrome, never competing with the Current Focus card for visual
+   priority. The active segment carries `aria-pressed="true"` plus
+   `.is-active`; both buttons stay keyboard-reachable (native buttons,
+   global :focus-visible ring). */
+.lang-switch {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lang-btn {
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 0;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.lang-btn + .lang-btn {
+  border-left: 1px solid var(--border);
+}
+
+.lang-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.lang-btn.is-active,
+.lang-btn[aria-pressed="true"] {
+  background: var(--surface-3);
+  color: var(--text);
+  font-weight: 600;
+}
+
 .sidebar-toggle {
   display: none;
   align-items: center;
@@ -875,6 +918,15 @@ th {
 .badge-raw {
   font-size: 11px;
   opacity: 0.78;
+}
+
+/* Detailed badges show `<localized label> <RAW_ENUM>` (UI-D2). The chip is
+   always in the document so the browser can switch locales without a
+   rebuild (V0.1.2); under `en` the localized label *is* the raw enum, so
+   the duplicate chip is hidden. The `data-locale` attribute is baked in at
+   build time and re-pointed by the boot script / app.js on switch. */
+html[data-locale="en"] .badge-raw {
+  display: none;
 }
 
 .badge[data-status="NOT_STARTED"] { background: var(--st-not_started-bg); color: var(--st-not_started-fg); }
@@ -1645,6 +1697,12 @@ th {
 @media (max-width: 560px) {
   .topbar-dashboard {
     display: none;
+  }
+
+  /* The dashboard link (which normally owns margin-left:auto) is gone;
+     the language switcher keeps its right-aligned position alone. */
+  .lang-switch {
+    margin-left: auto;
   }
 
   .stats {

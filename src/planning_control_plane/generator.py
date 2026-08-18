@@ -31,6 +31,16 @@ the same projection:
 * every human-facing label goes through :mod:`planning_control_plane.i18n`
   while ids and stored enum values stay raw (UI-D2).
 
+V0.1.2 keeps that projection byte-identical per locale and adds a runtime
+language switch on top (Owner Decisions LANG-D1…LANG-D6): every page embeds
+the full translation payload (``i18n.runtime_payload``) plus a tiny boot
+script that applies a ``localStorage`` preference before first paint, and
+``app.js`` re-labels ``data-i18n``-marked chrome when the user switches
+``中文 / English`` in the topbar. The switch is presentation-only — it
+writes nothing back, so ``pcp build --check`` stays green (LANG-D4) — and
+user planning data, technical ids and raw enums are never translated
+(LANG-D3).
+
 None of that touches planning semantics: no node schema field, no
 inheritance rule, no capsule content and no status lifecycle changed.
 """
@@ -150,12 +160,16 @@ def _status_view(locale: str, status: str) -> dict:
     ``label`` is what a human reads, ``raw`` is the stored enum value that
     the CLI and the capsule use, and ``shape`` makes status legible without
     relying on colour (spec §13, UI-D2). For ``en`` label equals raw, so
-    English pages never print the same value twice.
+    English pages never print the same value twice. ``i18n`` is the runtime
+    translation key stamped on the badge so the browser can re-label it
+    without a rebuild (V0.1.2 LANG-D1); it is ``None`` for values outside
+    the controlled enum, whose text must stay exactly as stored.
     """
     return {
         "raw": status,
         "label": i18n.status_label(locale, status),
         "shape": i18n.status_shape(status),
+        "i18n": i18n.status_key(status),
     }
 
 
@@ -168,6 +182,7 @@ def _track_view(locale: str, key: str, value: str) -> dict:
         "status_label": i18n.track_label(locale, value),
         "raw": raw,
         "shape": i18n.track_shape(value),
+        "i18n": i18n.track_key(value),
     }
 
 
@@ -370,6 +385,7 @@ def _base_context(ctx: _Ctx, current_page_id: str | None) -> dict:
         "locale": ctx.locale,
         "html_lang": i18n.html_lang(ctx.locale),
         "t": i18n.translator(ctx.locale),
+        "i18n_payload": i18n.runtime_payload(ctx.locale),
         "focus_id": project.config.current_focus,
         "tree": _planning_tree(ctx, project.config.current_focus, current_page_id),
         "base": {

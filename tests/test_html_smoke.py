@@ -136,7 +136,7 @@ def test_node_page_copy_context_button_has_aria_label(built_site):
     # a Copy ID button carries the raw node id, never a localized form
     assert 'data-copy-value="P2-A4"' in text
     # the clipboard fallback is a labelled, read-only textarea
-    assert re.search(r'<textarea readonly aria-label="[^"]+">', text)
+    assert re.search(r'<textarea readonly aria-label="[^"]+"[^>]*>', text)
     # the result of a copy is announced, not only shown (spec §36)
     assert 'class="copy-status" role="status" aria-live="polite"' in text
 
@@ -177,15 +177,21 @@ def test_node_page_track_status_shows_na(built_site):
     _project, dist = built_site
     text = (dist / "nodes" / "P2-A4.html").read_text(encoding="utf-8")
 
-    # P2-A4: discussion NOT_STARTED, writeback N/A, implementation N/A
-    for label, raw, shape in (
-        ("Discussion", "NOT_STARTED", "○"),
-        ("Writeback", "N/A", "–"),
-        ("Implementation", "N/A", "–"),
+    # P2-A4: discussion NOT_STARTED, writeback N/A, implementation N/A.
+    # Since V0.1.2 the label carries its runtime translation key and the
+    # raw chip is always in the document (hidden under `en` by the
+    # stylesheet, shown under every other locale).
+    for label, key, raw, shape in (
+        ("Discussion", "discussion", "NOT_STARTED", "○"),
+        ("Writeback", "writeback", "N/A", "–"),
+        ("Implementation", "implementation", "N/A", "–"),
     ):
         pattern = (
-            rf"<dt>{label}</dt>\s*<dd><span class=\"track-badge\" data-track=\"{re.escape(raw)}\">"
-            rf"<span class=\"shape\" aria-hidden=\"true\">{shape}</span>{re.escape(raw)}</span>"
+            rf"<dt data-i18n=\"node\.track\.{key}\">{label}</dt>\s*"
+            rf"<dd><span class=\"track-badge\" data-track=\"{re.escape(raw)}\">"
+            rf"<span class=\"shape\" aria-hidden=\"true\">{shape}</span>"
+            rf"<span data-i18n=\"[^\"]*\">{re.escape(raw)}</span>"
+            rf" <span class=\"badge-raw mono\">{re.escape(raw)}</span></span>"
         )
         assert re.search(pattern, text), label
 

@@ -250,9 +250,12 @@ class UIConfig:
     """Parsed ``ui:`` section of ``project.yaml`` (UI V0.1.1, Owner UI-D1).
 
     This is a **UI projection configuration**, not planning-node semantics:
-    it only selects the language of the generated human-facing HTML. Node
-    ids, decision ids, stored enum values, ``pcp context`` capsules and the
-    machine-facing CLI output are unaffected (Owner UI-D2).
+    it selects the **default** locale of the generated human-facing HTML.
+    Since V0.1.2 the page also lets the reader switch locale at runtime in
+    the browser (a presentation-only ``localStorage`` preference that never
+    reaches this file or the generated output). Node ids, decision ids,
+    stored enum values, ``pcp context`` capsules and the machine-facing CLI
+    output are unaffected either way (Owner UI-D2 / LANG-D3).
 
     ``locale`` is always a supported locale (the loader falls back to the
     default and records a WARNING for anything else); ``raw_locale`` keeps

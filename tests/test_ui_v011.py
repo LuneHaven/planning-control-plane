@@ -120,14 +120,26 @@ def _section(text, heading_id):
 
 def test_html_lang_follows_locale(zh_site, en_site):
     for name in ("index.html", "nodes/LEAF.html"):
-        assert '<html lang="zh-CN">' in _page(zh_site, name)
-        assert '<html lang="en">' in _page(en_site, name)
+        assert '<html lang="zh-CN" data-locale="zh-CN">' in _page(zh_site, name)
+        assert '<html lang="en" data-locale="en">' in _page(en_site, name)
 
 
 def test_chinese_chrome_is_translated(zh_site):
     page = _page(zh_site, "nodes/LEAF.html")
-    for label in ("下一步动作", "目标", "范围护栏", "本轮要做", "本轮不做", "冻结决策", "恢复这项工作", "复制上下文"):
+    for label in (
+        "下一步行动",
+        "目标",
+        "范围边界",
+        "本轮要做",
+        "本轮不做",
+        "已冻结决策",
+        "恢复这项工作",
+        "复制上下文",
+    ):
         assert label in page, label
+    # V0.1.2 wording fixes really replaced the old terms (spec §12)
+    for outdated in ("下一步动作", "范围护栏"):
+        assert outdated not in page, outdated
 
 
 # ---------------------------------------------------------------- UI-D2
@@ -150,9 +162,17 @@ def test_ids_and_stored_values_are_never_localized(zh_site):
 def test_node_header_and_tracks_show_label_plus_raw_enum(zh_site):
     page = _page(zh_site, "nodes/LEAF.html")
     head = re.search(r'<header class="node-head">.*?</header>', page, re.DOTALL).group(0)
-    assert '未开始 <span class="badge-raw mono">NOT_STARTED</span>' in head
-    assert '进行中 <span class="badge-raw mono">IN_PROGRESS</span>' in head
-    assert '不适用 <span class="badge-raw mono">N/A</span>' in head
+    # since V0.1.2 the localized label is its own element (runtime
+    # switching) and the raw chip is always in the document
+    for label, key, raw in (
+        ("未开始", "status.NOT_STARTED", "NOT_STARTED"),
+        ("进行中", "track.IN_PROGRESS", "IN_PROGRESS"),
+        ("不适用", "track.NOT_APPLICABLE", "N/A"),
+    ):
+        assert (
+            f'<span data-i18n="{key}">{label}</span> <span class="badge-raw mono">{raw}</span>'
+            in head
+        ), key
     # the shape is there too: text + shape + colour
     assert '<span class="shape" aria-hidden="true">○</span>' in head
 
@@ -161,7 +181,7 @@ def test_sidebar_and_tables_show_the_label_only(zh_site):
     """UI-D2: compact places carry the localized label, without the enum."""
     page = _page(zh_site, "index.html")
     sidebar = re.search(r'<aside class="sidebar".*?</aside>', page, re.DOTALL).group(0)
-    assert '<span class="shape" aria-hidden="true">○</span>未开始</span>' in sidebar
+    assert '<span class="shape" aria-hidden="true">○</span><span data-i18n="status.NOT_STARTED">未开始</span></span>' in sidebar
     assert "badge-raw" not in sidebar
     # ... but the raw value is still the machine-readable attribute
     assert 'data-status="NOT_STARTED"' in sidebar
@@ -192,7 +212,7 @@ def test_dashboard_exception_panel_only_exists_when_something_is_wrong(make_proj
     assert "panel--exception" not in page
     assert 'id="attention"' not in page
     # the "nothing is blocking" statement rides inside the focus card instead
-    assert '<span class="chip chip--ok">无阻塞</span>' in page
+    assert '<span class="chip chip--ok" data-i18n="dash.no_blockers">无阻塞</span>' in page
 
 
 def test_dashboard_exception_panel_collects_blocking_and_blocked(zh_site):
@@ -336,13 +356,18 @@ def test_generation_is_deterministic_per_locale(make_project, tmp_path):
 
 
 def test_ui_preferences_live_only_in_the_browser(zh_site):
-    """AC-UI-12: localStorage is a browser-side preference; it never appears
-    in a generated page and cannot influence a rebuild."""
-    for name in ("index.html", "nodes/LEAF.html"):
-        assert "localStorage" not in _page(zh_site, name)
+    """AC-UI-12 (V0.1.2 reading): browser-side preferences are read at page
+    load and written by user action only. The generated pages necessarily
+    contain the *mechanism* (boot script + app.js), so what this pins is
+    that the only storage keys anywhere are the two preference namespaces
+    and that no preference value is ever baked into a build."""
     script = _page(zh_site, "assets/app.js")
-    keys = set(re.findall(r'"(pcp\.[a-z.]+)', script)) | set(re.findall(r'"(pcp\.[a-z.]+):', script))
-    assert keys <= {"pcp.tree"}
+    for name in ("index.html", "nodes/LEAF.html"):
+        page = _page(zh_site, name)
+        keys = set(re.findall(r'"(pcp\.[a-z.]+):', page)) | set(re.findall(r"'(pcp\.[a-z.]+):", page))
+        assert keys <= {"pcp.locale"}, (name, keys)
+    keys = set(re.findall(r'"(pcp\.[a-z.]+):', script))
+    assert keys == {"pcp.tree", "pcp.locale"}
 
 
 def test_build_check_is_stable_for_a_localized_project(make_project, tmp_path, cli):

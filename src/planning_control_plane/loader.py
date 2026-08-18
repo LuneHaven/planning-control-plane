@@ -360,7 +360,8 @@ def _parse_config(data: object, issues: list) -> ProjectConfig:
 def _parse_ui(ui: dict, issues: list) -> UIConfig:
     """Parse the ``ui:`` section (UI V0.1.1).
 
-    ``ui.locale`` selects the language of the generated HTML only. An
+    ``ui.locale`` selects the default language of the generated HTML only
+    (the page itself offers a runtime switch stored in the browser). An
     unsupported value is never fatal: it falls back to the default locale
     and reports a WARNING, so an upgraded or mistyped config still builds
     (spec §5). A missing key keeps the default, which is exactly the V0.1

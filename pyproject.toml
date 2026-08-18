@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "planning-control-plane"
-version = "0.1.0"
+version = "0.1.2"
 description = "Repository-native planning context and progress control tool (pcp)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,6 +16,8 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Natural Language :: Chinese (Simplified)",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Planning",

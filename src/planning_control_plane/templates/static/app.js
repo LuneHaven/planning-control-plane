@@ -1,20 +1,29 @@
-/* Planning Control Plane — generated site behaviour (UI V0.1.1).
+/* Planning Control Plane — generated site behaviour (UI V0.1.1 / V0.1.2).
  *
  * Progressive enhancement only: every page is complete and usable without
  * JavaScript (the tree renders fully expanded, decision groups are native
  * <details>, and all links are plain anchors). This script adds, in DOM
  * order:
  *
- *   1. Planning tree expand/collapse through a real toggle button per
+ *   1. Runtime language switching (V0.1.2). The page embeds the complete
+ *      translation payload from the Python i18n dictionaries as
+ *      <script type="application/json" id="pcp-i18n"> — there is no second
+ *      translation table in this file. Elements marked `data-i18n` (text)
+ *      and `data-i18n-attr` (attributes) are re-labelled from that payload;
+ *      `<html lang>` follows the active locale. The choice persists in
+ *      localStorage under `pcp.locale:<site>` — a browser-side preference
+ *      that never reaches the generated files and never affects
+ *      `pcp build --check`.
+ *   2. Planning tree expand/collapse through a real toggle button per
  *      branch, with the open/closed set remembered in localStorage. The
  *      stored value is a pure UI preference: it never reaches the
  *      generated output and never affects `pcp build --check`.
- *   2. Expand all / collapse all, and auto-scrolling the sidebar to the
+ *   3. Expand all / collapse all, and auto-scrolling the sidebar to the
  *      node whose page is open.
- *   3. Copy buttons — context capsule and node id — using the async
+ *   4. Copy buttons — context capsule and node id — using the async
  *      Clipboard API, announcing the result through an aria-live region
  *      and falling back to a selectable read-only textarea.
- *   4. Off-canvas sidebar on narrow screens, marked `inert` while hidden
+ *   5. Off-canvas sidebar on narrow screens, marked `inert` while hidden
  *      so keyboard focus cannot enter it.
  *
  * Vanilla JavaScript, no dependencies, no network requests.
@@ -25,19 +34,167 @@
   var sidebar = document.getElementById("sidebar");
   var liveRegion = document.querySelector(".copy-status");
 
-  /* ------------------------------------------------ stored preferences --- */
+  /* ------------------------------------------------- runtime language (V0.1.2) --- */
+
+  /* The payload is generated from planning_control_plane.i18n — the same
+   * dictionaries that rendered the page — so Python stays the single
+   * translation source (spec §5). A missing or corrupt payload simply
+   * disables switching: the page keeps its build locale. */
+  var i18n = loadI18n();
+  var activeLocale = null;
+
+  function loadI18n() {
+    var node = document.getElementById("pcp-i18n");
+    if (!node) {
+      return null;
+    }
+    try {
+      var data = JSON.parse(node.textContent);
+      if (data && data.messages && data.messages.en) {
+        return data;
+      }
+    } catch (err) {
+      /* corrupt payload: fall through to "no switching" */
+    }
+    return null;
+  }
 
   /* One key per generated site, so two projects opened from the same
-   * origin (file:// included) do not share tree state. Node pages live one
-   * directory down, so that level is stripped to keep the key stable. */
-  function storageKey() {
-    var dir = String(location.pathname).replace(/[^/]*$/, "");
-    return "pcp.tree:" + dir.replace(/nodes\/$/, "");
+   * origin (file:// included) do not share preferences. Node pages live
+   * one directory down, so that level is stripped to keep the key stable —
+   * the same computation as the inline boot script in <head>. */
+  function siteKey() {
+    return String(location.pathname).replace(/[^/]*$/, "").replace(/nodes\/$/, "");
   }
+
+  var LOCALE_KEY = "pcp.locale:" + siteKey();
+
+  function supportedLocales() {
+    if (!i18n) {
+      return [];
+    }
+    return i18n.locales || Object.keys(i18n.messages);
+  }
+
+  function readStoredLocale() {
+    var locales = supportedLocales();
+    try {
+      var stored = window.localStorage.getItem(LOCALE_KEY);
+      if (stored && locales.indexOf(stored) !== -1) {
+        return stored;
+      }
+    } catch (err) {
+      /* storage unavailable (private mode, file:// policy): use default */
+    }
+    return null;
+  }
+
+  function lookup(key, locale) {
+    var table = i18n && i18n.messages ? i18n.messages[locale] : null;
+    if (table && Object.prototype.hasOwnProperty.call(table, key)) {
+      return table[key];
+    }
+    return null;
+  }
+
+  /* Mirrors the Python translator: current locale, then English, then the
+   * key itself. `{name}` placeholders interpolate from parsed args. */
+  function translate(key, args) {
+    var text = lookup(key, activeLocale);
+    if (text === null) {
+      text = lookup(key, "en");
+    }
+    if (text === null) {
+      return key;
+    }
+    if (!args) {
+      return text;
+    }
+    return String(text).replace(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g, function (whole, name) {
+      return Object.prototype.hasOwnProperty.call(args, name) ? String(args[name]) : whole;
+    });
+  }
+
+  function parseArgs(element) {
+    var raw = element.getAttribute("data-i18n-args");
+    if (!raw) {
+      return null;
+    }
+    try {
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (err) {
+      return null; // a broken args blob must not blank the label
+    }
+  }
+
+  /* `data-i18n-attr` is a ';'-separated list of attribute=key pairs, e.g.
+   * "aria-label=action.copy_context.aria; data-copied-label=action.copied". */
+  function applyAttrs(element) {
+    var spec = element.getAttribute("data-i18n-attr") || "";
+    spec.split(";").forEach(function (pair) {
+      var parts = pair.split("=");
+      if (parts.length !== 2) {
+        return;
+      }
+      var name = parts[0].replace(/^\s+|\s+$/g, "");
+      var key = parts[1].replace(/^\s+|\s+$/g, "");
+      if (name && key) {
+        element.setAttribute(name, translate(key));
+      }
+    });
+  }
+
+  function applyLocale(locale) {
+    activeLocale = locale;
+    var root = document.documentElement;
+    root.lang = locale;
+    root.setAttribute("data-locale", locale); // stylesheet reacts (raw-enum chips)
+
+    Array.prototype.forEach.call(document.querySelectorAll("[data-i18n]"), function (element) {
+      element.textContent = translate(element.getAttribute("data-i18n"), parseArgs(element));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-i18n-attr]"), applyAttrs);
+
+    var group = document.getElementById("lang-switch");
+    if (group) {
+      group.hidden = false; // without JavaScript the control would do nothing
+    }
+    Array.prototype.forEach.call(document.querySelectorAll("[data-set-locale]"), function (button) {
+      var active = button.getAttribute("data-set-locale") === locale;
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      if (active) {
+        button.classList.add("is-active");
+      } else {
+        button.classList.remove("is-active");
+      }
+    });
+  }
+
+  if (i18n) {
+    applyLocale(readStoredLocale() || i18n.default || "en");
+
+    Array.prototype.forEach.call(document.querySelectorAll("[data-set-locale]"), function (button) {
+      button.addEventListener("click", function () {
+        var locale = button.getAttribute("data-set-locale");
+        if (supportedLocales().indexOf(locale) === -1) {
+          return;
+        }
+        try {
+          window.localStorage.setItem(LOCALE_KEY, locale);
+        } catch (err) {
+          /* preference-only: losing it must never break the switch itself */
+        }
+        applyLocale(locale);
+      });
+    });
+  }
+
+  /* ------------------------------------------------ stored preferences --- */
 
   function readCollapsed() {
     try {
-      var raw = window.localStorage.getItem(storageKey());
+      var raw = window.localStorage.getItem("pcp.tree:" + siteKey());
       var parsed = raw ? JSON.parse(raw) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch (err) {
@@ -47,7 +204,7 @@
 
   function writeCollapsed(ids) {
     try {
-      window.localStorage.setItem(storageKey(), JSON.stringify(ids));
+      window.localStorage.setItem("pcp.tree:" + siteKey(), JSON.stringify(ids));
     } catch (err) {
       /* preference-only: losing it must never break the page */
     }
@@ -167,9 +324,19 @@
   Array.prototype.forEach.call(
     document.querySelectorAll("[data-copy-from], [data-copy-value]"),
     function (button) {
+      // Build-locale label, kept as the last-resort revert text if the
+      // translation payload is unavailable.
       var originalLabel = button.textContent;
-      var copiedLabel = button.getAttribute("data-copied-label") || originalLabel;
       var revertTimer = null;
+
+      // Read labels at click time, not setup time, so they follow the
+      // currently active locale (the switch rewrites data-i18n text and
+      // the data-copied-label attribute).
+      function idleLabel() {
+        var key = button.getAttribute("data-i18n");
+        var text = key ? translate(key) : null;
+        return text && text !== key ? text : originalLabel;
+      }
 
       function resolveText() {
         var literal = button.getAttribute("data-copy-value");
@@ -181,13 +348,15 @@
       }
 
       function markCopied() {
-        button.textContent = copiedLabel;
-        announce(copiedLabel);
+        var idle = idleLabel();
+        var copied = button.getAttribute("data-copied-label") || idle;
+        button.textContent = copied;
+        announce(copied);
         if (revertTimer !== null) {
           window.clearTimeout(revertTimer);
         }
         revertTimer = window.setTimeout(function () {
-          button.textContent = originalLabel;
+          button.textContent = idleLabel();
           revertTimer = null;
         }, 2000);
       }
