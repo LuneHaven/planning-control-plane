@@ -100,6 +100,7 @@ def test_all_links_and_assets_are_relative(built_site, page_name):
 
 
 def test_node_page_breadcrumb_is_clickable_path(built_site):
+    """Spec §23: every crumb carries id *and* title, not just the id."""
     _project, dist = built_site
     text = (dist / "nodes" / "P2-A2.html").read_text(encoding="utf-8")
 
@@ -108,23 +109,36 @@ def test_node_page_breadcrumb_is_clickable_path(built_site):
     breadcrumb = match.group(0)
 
     # crumbs read Program > Phase > Strategy > node, root first
-    crumbs = re.findall(r'<(?:a|span) class="mono"[^>]*>([^<]+)</(?:a|span)>', breadcrumb)
+    crumbs = re.findall(r'<span class="mono">([^<]+)</span>', breadcrumb)
     assert crumbs == ["P1", "P2", "P2-A", "P2-A2"]
+    titles = re.findall(r'<span class="crumb-title">([^<]+)</span>', breadcrumb)
+    assert titles == [
+        "Program Foundation",
+        "Product Rollout",
+        "Rollout Strategy",
+        "Define Rollout Readiness Criteria",
+    ]
     # every non-current crumb is a link, the current one is marked
     assert 'aria-current="page"' in breadcrumb
-    assert len(re.findall(r'<a class="mono" href="\.\./nodes/', breadcrumb)) == 3
+    assert len(re.findall(r'<a class="crumb" href="\.\./nodes/', breadcrumb)) == 3
 
 
 def test_node_page_copy_context_button_has_aria_label(built_site):
     _project, dist = built_site
     text = (dist / "nodes" / "P2-A4.html").read_text(encoding="utf-8")
 
-    button = re.search(r'<button[^>]*class="copy-context"[^>]*>', text)
-    assert button, "Copy Context button missing"
+    buttons = re.findall(r'<button[^>]*data-copy-from="capsule-text"[^>]*>', text)
+    assert buttons, "Copy Context button missing"
     assert "Copy Context</button>" in text
-    assert re.search(r'aria-label="[^"]+"', button.group(0))
+    for button in buttons:
+        assert re.search(r'aria-label="[^"]+"', button)
+        assert re.search(r'data-copied-label="[^"]+"', button)
+    # a Copy ID button carries the raw node id, never a localized form
+    assert 'data-copy-value="P2-A4"' in text
     # the clipboard fallback is a labelled, read-only textarea
     assert re.search(r'<textarea readonly aria-label="[^"]+">', text)
+    # the result of a copy is announced, not only shown (spec §36)
+    assert 'class="copy-status" role="status" aria-live="polite"' in text
 
 
 def test_node_page_embeds_capsule_matching_cli(demo_root, built_site, capsys):
@@ -134,7 +148,7 @@ def test_node_page_embeds_capsule_matching_cli(demo_root, built_site, capsys):
     _project, dist = built_site
     page = (dist / "nodes" / "P2-A4.html").read_text(encoding="utf-8")
 
-    match = re.search(r'<pre class="capsule-text">(.*?)</pre>', page, re.DOTALL)
+    match = re.search(r'<pre id="capsule-text" class="capsule-text">(.*?)</pre>', page, re.DOTALL)
     assert match
     embedded = html_module.unescape(match.group(1))
 
@@ -151,41 +165,49 @@ def test_node_page_shows_inherited_frozen_decisions(built_site):
     text = (dist / "nodes" / "P2-A1.html").read_text(encoding="utf-8")
 
     # P2-A1 sits under P2-A / P2 / P1; the program-level frozen decision
-    # FD-001 is displayed as inherited, grouped by ancestor
-    assert "Inherited from" in text
+    # FD-001 is displayed as inherited, grouped by ancestor in <details>
+    assert "Inherited from ancestors" in text
     assert "FD-101" in text  # frozen at P2
     assert "FD-001" in text  # frozen at P1
+    assert '<details class="dgroup"' in text
 
 
 def test_node_page_track_status_shows_na(built_site):
+    """Spec §34: each track shows label, shape and the raw enum value."""
     _project, dist = built_site
     text = (dist / "nodes" / "P2-A4.html").read_text(encoding="utf-8")
 
     # P2-A4: discussion NOT_STARTED, writeback N/A, implementation N/A
-    assert re.search(r"<dt>Discussion</dt><dd><span class=\"track-badge\">NOT_STARTED</span>", text)
-    assert re.search(r"<dt>Writeback</dt><dd><span class=\"track-badge\">N/A</span>", text)
-    assert re.search(r"<dt>Implementation</dt><dd><span class=\"track-badge\">N/A</span>", text)
+    for label, raw, shape in (
+        ("Discussion", "NOT_STARTED", "○"),
+        ("Writeback", "N/A", "–"),
+        ("Implementation", "N/A", "–"),
+    ):
+        pattern = (
+            rf"<dt>{label}</dt>\s*<dd><span class=\"track-badge\" data-track=\"{re.escape(raw)}\">"
+            rf"<span class=\"shape\" aria-hidden=\"true\">{shape}</span>{re.escape(raw)}</span>"
+        )
+        assert re.search(pattern, text), label
 
 
 # --------------------------------------------------------------- dashboard
 
 
-def test_dashboard_shows_focus_tree_progress_blocking_queue(built_site):
+def test_dashboard_shows_focus_exceptions_branch_progress_queue(built_site):
+    """UI-D3: orientation, exceptions and next work — never the whole tree."""
     _project, dist = built_site
     text = (dist / "index.html").read_text(encoding="utf-8")
 
-    # section headings (spec §24)
-    for heading in ("Current Focus", "Planning Tree", "Progress Summary", "Blocking Decisions", "Recently Updated", "Next Queue"):
+    for heading in ("Current Focus", "Needs Attention", "Focus Branch", "Progress", "Ready Queue", "Recently Updated"):
         assert heading in text, heading
 
-    # current focus panel: node, status, next action
+    # current focus card: node, status, next action, three tracks, resume
     assert "P2-A4" in text
     assert "Rollout Readiness Preflight" in text
     assert "NOT_STARTED" in text
     assert "Resolve BD-401" in text
-
-    # the phase of the focus (P2) is shown
-    assert "Current Phase" in text
+    assert "Copy Context</button>" in text
+    assert "Parent path" in text
 
     # progress numbers: total 7, done 4, blocked 0, pending 1 (planning only)
     assert '<span class="stat-value">7</span>' in text
@@ -193,11 +215,11 @@ def test_dashboard_shows_focus_tree_progress_blocking_queue(built_site):
     assert '<span class="stat-value">0</span>' in text
     assert "not product or engineering completion" in text
 
-    # blocking decisions are collected in one table
+    # the demo project has one blocking decision, so the exception panel exists
     assert "BD-401" in text
+    assert 'class="panel panel--exception"' in text
 
-    # next queue: P2-A4 is the one ready node
-    assert "Next Queue" in text
+    # ready queue: P2-A4 is the one ready node
     queue = re.search(r'id="queue-heading".*?</section>', text, re.DOTALL).group(0)
     assert "P2-A4" in queue
 
@@ -208,14 +230,65 @@ def test_dashboard_shows_focus_tree_progress_blocking_queue(built_site):
     assert dates[0] == "2026-08-17"  # P2-A4 is the most recently updated
 
 
-def test_dashboard_tree_marks_current_focus(built_site):
+def test_dashboard_does_not_repeat_the_planning_tree(built_site):
+    """UI-D3: the sidebar owns the full topology; the main region must not
+    render a second copy of it."""
     _project, dist = built_site
     text = (dist / "index.html").read_text(encoding="utf-8")
+
+    main = re.search(r'<main class="content".*?</main>', text, re.DOTALL).group(0)
+    assert 'role="tree"' not in main
+    assert 'class="treeitem' not in main
+    # ... while the sidebar still carries every node
+    sidebar = re.search(r'<aside class="sidebar".*?</aside>', text, re.DOTALL).group(0)
+    for node_id in DEMO_NODE_IDS:
+        assert f'data-node-id="{node_id}"' in sidebar
+
+
+def test_dashboard_focus_branch_points_at_the_sidebar(built_site):
+    """Spec §21: a branch view, explicitly not the whole tree."""
+    _project, dist = built_site
+    text = (dist / "index.html").read_text(encoding="utf-8")
+
+    branch = re.search(r'id="branch-heading".*?</section>', text, re.DOTALL).group(0)
+    assert "full planning tree is in the sidebar" in branch.lower()
+    # lineage down to the focus, then its siblings with the focus marked
+    lineage = re.search(r'<p class="branch-lineage">.*?</p>', branch, re.DOTALL).group(0)
+    assert re.findall(r'<span class="mono">([^<]+)</span>', lineage) == ["P1", "P2", "P2-A"]
+    for sibling in ("P2-A1", "P2-A2", "P2-A3", "P2-A4"):
+        assert sibling in branch
+    assert 'class="branch-item is-current"' in branch
+    # a branch view, not a second tree
+    assert 'role="tree"' not in branch and 'class="treeitem' not in branch
+
+
+def test_sidebar_marks_current_focus_with_its_own_visual_system(built_site):
+    """Spec §14: focus is a pill plus aria-current, never another status."""
+    _project, dist = built_site
+    text = (dist / "index.html").read_text(encoding="utf-8")
+
     focus_item = re.search(r'<li role="treeitem"[^>]*class="[^"]*is-focus[^"]*"', text)
     assert focus_item
-    # The focus marker must be visible text, not colour-only (spec §29):
-    # pin the rendered <span class="focus-flag">…focus…</span> element itself.
-    assert re.search(r'class="focus-flag"[^>]*>\s*focus\s*<', text)
+    # the focus marker must be visible text, not colour-only (spec §29)
+    assert re.search(r'class="focus-pill"[^>]*>\s*focus\s*<', text)
+    assert 'aria-current="true"' in text
+    # ... and it is not expressed as a status value
+    assert 'data-status="FOCUS"' not in text
+
+
+def test_sidebar_tree_has_no_redundant_tab_stops(built_site):
+    """Spec §43/§44: branch rows expose a real toggle button; the treeitems
+    themselves are no longer 15 extra tab stops."""
+    _project, dist = built_site
+    text = (dist / "index.html").read_text(encoding="utf-8")
+
+    assert 'role="treeitem" tabindex' not in text
+    toggles = re.findall(r'<button type="button" class="tree-toggle"[^>]*>', text)
+    assert toggles, "branch rows need a toggle button"
+    for toggle in toggles:
+        assert 'aria-expanded=' in toggle
+        assert 'aria-controls=' in toggle
+        assert 'aria-label=' in toggle
 
 
 def test_theme_css_supports_dark_mode(built_site):

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 
+from planning_control_plane import i18n
 from planning_control_plane.model import (
     NODE_ID_RE,
     PLANNING_DIR,
@@ -26,6 +27,7 @@ from planning_control_plane.model import (
     Severity,
     TrackStatus,
     TRACK_STATUS_ALIASES,
+    UIConfig,
     ValidationIssue,
 )
 
@@ -343,8 +345,56 @@ def _parse_config(data: object, issues: list) -> ProjectConfig:
                         _issue(Severity.ERROR, "invalid-output-directory", f"{PROJECT_FILE}: 'output.directory' must be a non-empty string")
                     )
 
-    known_top = {"project", "planning", "authority", "output"}
+    ui = data.get("ui")
+    if ui is not None:
+        if not isinstance(ui, dict):
+            issues.append(_issue(Severity.ERROR, "invalid-ui-section", f"{PROJECT_FILE}: 'ui' must be a mapping"))
+        else:
+            config.ui = _parse_ui(ui, issues)
+
+    known_top = {"project", "planning", "authority", "output", "ui"}
     config.unknown_keys = sorted(str(k) for k in data.keys() if k not in known_top)
+    return config
+
+
+def _parse_ui(ui: dict, issues: list) -> UIConfig:
+    """Parse the ``ui:`` section (UI V0.1.1).
+
+    ``ui.locale`` selects the language of the generated HTML only. An
+    unsupported value is never fatal: it falls back to the default locale
+    and reports a WARNING, so an upgraded or mistyped config still builds
+    (spec §5). A missing key keeps the default, which is exactly the V0.1
+    English behaviour.
+    """
+    config = UIConfig()
+    locale = ui.get("locale")
+    if locale is not None:
+        if not isinstance(locale, str) or not locale.strip():
+            issues.append(
+                _issue(
+                    Severity.WARNING,
+                    "unknown-ui-locale",
+                    f"{PROJECT_FILE}: 'ui.locale' must be a non-empty string; "
+                    f"falling back to '{i18n.DEFAULT_LOCALE}' "
+                    f"(supported: {', '.join(i18n.SUPPORTED_LOCALES)})",
+                )
+            )
+        else:
+            config.raw_locale = locale.strip()
+            if i18n.is_supported(config.raw_locale):
+                config.locale = config.raw_locale
+            else:
+                issues.append(
+                    _issue(
+                        Severity.WARNING,
+                        "unknown-ui-locale",
+                        f"{PROJECT_FILE}: unknown 'ui.locale' value '{config.raw_locale}'; "
+                        f"falling back to '{i18n.DEFAULT_LOCALE}' "
+                        f"(supported: {', '.join(i18n.SUPPORTED_LOCALES)})",
+                    )
+                )
+
+    config.unknown_keys = sorted(str(k) for k in ui.keys() if k != "locale")
     return config
 
 

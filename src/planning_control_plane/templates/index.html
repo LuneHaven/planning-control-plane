@@ -1,139 +1,95 @@
 {% extends "base.html" %}
-{% block title %}{{ project_name }} · Planning Control Plane{% endblock %}
+{% block title %}{{ project_name }} · {{ t("site.tool") }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Planning Dashboard</h1>
-  <p class="page-sub">Static projection of the planning graph: structure, decisions and planning progress.</p>
+  <h1>{{ t("dash.title") }}</h1>
+  <p class="page-sub">{{ t("dash.subtitle") }}</p>
 </div>
 
+{# ---------------------------------------------------------- current focus #}
 {% if focus.set and not focus.missing %}
-<section class="panel focus-panel" aria-labelledby="focus-heading">
-  <h2 id="focus-heading">Current Focus</h2>
-  <div class="focus-grid">
-    <div class="focus-main">
-      <p class="focus-node"><a class="focus-link" href="{{ focus.url }}"><span class="mono">{{ focus.id }}</span> — {{ focus.title }}</a></p>
-      <p class="focus-status"><span class="badge" data-status="{{ focus.status }}">{{ focus.status }}</span></p>
-      <h3>Next Action</h3>
-{% if focus.next_action %}
-      <p class="prose">{{ focus.next_action }}</p>
-{% else %}
-      <p class="empty-state">No next action recorded.</p>
+<section class="focus-card" aria-labelledby="focus-heading">
+  <div class="focus-card-head">
+    <p class="focus-eyebrow"><span class="focus-pill">{{ t("node.focus_flag") }}</span><span class="eyebrow-label" id="focus-heading">{{ t("dash.focus") }}</span></p>
+    <h2 class="focus-node"><a href="{{ focus.url }}"><span class="mono focus-node-id">{{ focus.id }}</span><span class="focus-node-title">{{ focus.title }}</span></a></h2>
+    <p class="focus-line">
+      <span class="badge badge--lg" data-status="{{ focus.status.raw }}"><span class="shape" aria-hidden="true">{{ focus.status.shape }}</span>{{ focus.status.label }}{% if focus.status.label != focus.status.raw %} <span class="badge-raw mono">{{ focus.status.raw }}</span>{% endif %}</span>
+{% if not attention.any %}
+      <span class="chip chip--ok">{{ t("dash.no_blockers") }}</span>
 {% endif %}
-    </div>
-    <dl class="focus-meta">
-      <div class="meta-row">
-        <dt>Current Phase</dt>
-        <dd>
-{% if focus.phase %}
-          <a class="mono" href="{{ focus.phase.url }}">{{ focus.phase.id }}</a> <span class="muted">{{ focus.phase.title }}</span>
-{% else %}
-          <span class="muted">—</span>
+{% if focus.last_updated %}
+      <span class="muted">{{ t("node.updated") }} <span class="mono">{{ focus.last_updated }}</span></span>
 {% endif %}
-        </dd>
-      </div>
-      <div class="meta-row">
-        <dt>Blocked By</dt>
-        <dd>
-{% if focus.blocked_by %}
-          <ul class="ref-list">
-{% for dep in focus.blocked_by %}
-            <li>
-{% if dep.known %}
-              <a class="mono" href="{{ dep.url }}">{{ dep.id }}</a> <span class="badge" data-status="{{ dep.status }}">{{ dep.status }}</span>
-{% else %}
-              <span class="unknown-ref mono">{{ dep.id }}</span> <span class="muted">(unknown node)</span>
-{% endif %}
-            </li>
+    </p>
+{% if focus.parent_path %}
+    <p class="focus-path"><span class="focus-path-label">{{ t("dash.parent_path") }}</span>
+{% for crumb in focus.parent_path %}
+      <a class="mono" href="{{ crumb.url }}" title="{{ crumb.id }} — {{ crumb.title }}">{{ crumb.id }}</a>{% if not loop.last %}<span class="sep" aria-hidden="true">›</span>{% endif %}
 {% endfor %}
-          </ul>
-{% else %}
-          <span class="muted">Nothing blocking — all dependencies are DONE.</span>
+    </p>
 {% endif %}
-        </dd>
-      </div>
-      <div class="meta-row">
-        <dt>Blocking Decisions</dt>
-        <dd>
-{% if focus.blocking_decisions %}
-          <ul class="decision-list decision-list--blocking">
-{% for decision in focus.blocking_decisions %}
-            <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-summary">{{ decision.summary }}</span></li>
-{% endfor %}
-          </ul>
-{% else %}
-          <span class="muted">None.</span>
-{% endif %}
-        </dd>
-      </div>
-    </dl>
   </div>
+
+  <div class="focus-next">
+    <h3>{{ t("node.next_action") }}</h3>
+{% if focus.next_action %}
+    <p class="prose">{{ focus.next_action }}</p>
+{% else %}
+    <p class="empty-state">{{ t("node.next_action.empty") }}</p>
+{% endif %}
+  </div>
+
+  <dl class="tracks">
+{% for track in focus.tracks %}
+    <div class="track">
+      <dt>{{ track.label }}</dt>
+      <dd><span class="track-badge" data-track="{{ track.raw }}"><span class="shape" aria-hidden="true">{{ track.shape }}</span>{{ track.status_label }}{% if track.status_label != track.raw %} <span class="badge-raw mono">{{ track.raw }}</span>{% endif %}</span></dd>
+    </div>
+{% endfor %}
+  </dl>
+
+  <div class="focus-actions">
+    <button type="button" class="btn btn--primary" data-copy-from="focus-capsule" data-copied-label="{{ t("action.copied") }}" aria-label="{{ t("action.copy_context.aria") }}">{{ t("action.copy_context") }}</button>
+    <button type="button" class="btn" data-copy-value="{{ focus.id }}" data-copied-label="{{ t("action.copied") }}" aria-label="{{ t("action.copy_id.aria") }}">{{ t("action.copy_id") }}</button>
+    <a class="btn btn--link" href="{{ focus.url }}">{{ focus.id }} →</a>
+  </div>
+  <div class="copy-fallback" hidden>
+    <p class="hint">{{ t("action.copy_fallback.hint") }}</p>
+    <textarea readonly aria-label="{{ t("action.copy_fallback.aria") }}">{{ focus.capsule }}</textarea>
+  </div>
+  <pre id="focus-capsule" class="visually-hidden">{{ focus.capsule }}</pre>
 </section>
 {% elif focus.missing %}
-<section class="panel focus-panel focus-panel--empty" aria-labelledby="focus-heading">
-  <h2 id="focus-heading">Current Focus</h2>
-  <p class="empty-state">Current focus is set to <span class="mono">{{ focus.id }}</span>, but no node with that id exists in the planning graph.</p>
-  <p class="empty-hint">Run <code>pcp focus &lt;node-id&gt;</code> to select an existing node.</p>
+<section class="panel focus-panel--empty" aria-labelledby="focus-heading">
+  <h2 id="focus-heading">{{ t("dash.focus") }}</h2>
+  <p class="empty-state">{{ t("dash.focus.missing", id=focus.id) }}</p>
+  <p class="empty-hint">{{ t("dash.focus.missing_hint") }}</p>
 </section>
 {% else %}
-<section class="panel focus-panel focus-panel--empty" aria-labelledby="focus-heading">
-  <h2 id="focus-heading">Current Focus</h2>
-  <p class="empty-state">No current focus is set.</p>
-  <p class="empty-hint">Run <code>pcp focus &lt;node-id&gt;</code> to choose the node the next session should work on.</p>
+<section class="panel focus-panel--empty" aria-labelledby="focus-heading">
+  <h2 id="focus-heading">{{ t("dash.focus") }}</h2>
+  <p class="empty-state">{{ t("dash.focus.none") }}</p>
+  <p class="empty-hint">{{ t("dash.focus.none_hint") }}</p>
 </section>
 {% endif %}
 
-<section class="panel" aria-labelledby="tree-heading">
-  <h2 id="tree-heading">Planning Tree</h2>
-  <p class="muted panel-hint">Click a node to open its detail page. Click a row — or focus it and press Enter or Space — to expand or collapse a branch.</p>
-{% if tree %}
-  <ul role="tree" aria-label="Planning tree" class="tree tree--main">
-{% for item in tree recursive %}
-    <li role="treeitem" tabindex="0" class="treeitem{% if item.is_focus %} is-focus{% endif %}"{% if item.children %} aria-expanded="true"{% endif %}>
-      <span class="treeitem-row">
-        <a class="tree-link" href="{{ base.nodes }}{{ item.file }}" title="{{ item.id }} — {{ item.title }}"><span class="tree-id">{{ item.id }}</span><span class="tree-title">{{ item.title }}</span></a>
-{% if item.is_focus %}<span class="focus-flag" title="Current focus">focus</span>
-{% endif %}<span class="badge" data-status="{{ item.status }}">{{ item.status }}</span>
-      </span>
-{% if item.children %}
-      <ul role="group">
-{{ loop(item.children) }}
-      </ul>
-{% endif %}
-    </li>
-{% endfor %}
-  </ul>
-{% else %}
-  <p class="empty-state">No planning nodes.</p>
-{% endif %}
-</section>
-
-<section class="panel" aria-labelledby="progress-heading">
-  <h2 id="progress-heading">Progress Summary</h2>
-  <div class="stats">
-    <div class="stat"><span class="stat-value">{{ progress.total }}</span><span class="stat-label">Total</span></div>
-    <div class="stat"><span class="stat-value">{{ progress.done }}</span><span class="stat-label">Done</span></div>
-    <div class="stat"><span class="stat-value">{{ progress.active }}</span><span class="stat-label">Active</span></div>
-    <div class="stat stat--blocked"><span class="stat-value">{{ progress.blocked }}</span><span class="stat-label">Blocked</span></div>
-    <div class="stat"><span class="stat-value">{{ progress.pending }}</span><span class="stat-label">Pending</span></div>
-    <div class="stat"><span class="stat-value">{{ progress.deferred }}</span><span class="stat-label">Deferred</span></div>
-  </div>
-  <p class="progress-note">Planning node progress only — not product or engineering completion.</p>
-</section>
-
-<section class="panel" aria-labelledby="blocking-heading">
-  <h2 id="blocking-heading">Blocking Decisions</h2>
-{% if blocking_rows %}
+{# -------------------------------------------------------- needs attention #}
+{% if attention.any %}
+<section class="panel panel--exception" id="attention" aria-labelledby="attention-heading">
+  <h2 id="attention-heading"><span class="exception-icon" aria-hidden="true">▲</span>{{ t("dash.attention") }}</h2>
+{% if attention.blocking_rows %}
+  <h3>{{ t("dash.attention.blocking") }} <span class="count">{{ attention.blocking_count }}</span></h3>
   <div class="table-scroll">
     <table class="table">
       <thead>
-        <tr><th scope="col">Node</th><th scope="col">Decision</th><th scope="col">Summary</th></tr>
+        <tr><th scope="col">{{ t("dash.col.node") }}</th><th scope="col">{{ t("dash.col.decision") }}</th><th scope="col">{{ t("dash.col.summary") }}</th></tr>
       </thead>
       <tbody>
-{% for row in blocking_rows %}
-{% for decision in row.decisions %}
+{% for row in attention.blocking_rows %}
+{% for decision in row.group.decisions %}
         <tr>
           <td><a href="{{ row.node.url }}"><span class="mono">{{ row.node.id }}</span> <span class="muted">{{ row.node.title }}</span></a></td>
-          <td class="mono">{{ decision.id }}</td>
+          <td class="mono nowrap">{{ decision.id }}</td>
           <td>{{ decision.summary }}</td>
         </tr>
 {% endfor %}
@@ -141,46 +97,125 @@
       </tbody>
     </table>
   </div>
+{% endif %}
+{% if attention.blocked_nodes %}
+  <h3>{{ t("dash.attention.blocked") }} <span class="count">{{ attention.blocked_nodes | length }}</span></h3>
+  <ul class="ref-list">
+{% for ref in attention.blocked_nodes %}
+    <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span></li>
+{% endfor %}
+  </ul>
+{% endif %}
+{% if attention.deferred_deps %}
+  <h3>{{ t("dash.attention.deferred_deps") }} <span class="count">{{ attention.deferred_deps | length }}</span></h3>
+  <ul class="ref-list">
+{% for ref in attention.deferred_deps %}
+    <li>
+{% if ref.known %}
+      <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span>
 {% else %}
-  <p class="empty-state">No blocking decisions.</p>
+      <span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted">{{ t("node.rel.unknown") }}</span>
+{% endif %}
+    </li>
+{% endfor %}
+  </ul>
 {% endif %}
 </section>
+{% endif %}
 
+{# ------------------------------------------------------------ focus branch #}
+{% if branch.set %}
+<section class="panel" aria-labelledby="branch-heading">
+  <h2 id="branch-heading">{{ t("dash.branch") }}</h2>
+  <p class="muted panel-hint">{{ t("dash.branch.hint") }}</p>
+{% if branch.lineage %}
+  <p class="branch-lineage">
+{% for crumb in branch.lineage %}
+    <a href="{{ crumb.url }}" title="{{ crumb.id }} — {{ crumb.title }}"><span class="mono">{{ crumb.id }}</span> <span class="muted">{{ crumb.title }}</span></a><span class="sep" aria-hidden="true">›</span>
+{% endfor %}
+    <span class="mono branch-current">{{ branch.current.id }}</span>
+  </p>
+{% endif %}
+{% if branch.siblings %}
+  <h3>{{ t("dash.branch.siblings") }}</h3>
+  <ul class="branch-list">
+{% for ref in branch.siblings %}
+    <li class="branch-item{% if ref.is_current %} is-current{% endif %}">
+      <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
+      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span>
+    </li>
+{% endfor %}
+  </ul>
+{% endif %}
+{% if branch.children %}
+  <h3>{{ t("dash.branch.children") }}</h3>
+  <ul class="branch-list">
+{% for ref in branch.children %}
+    <li class="branch-item">
+      <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
+      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span>
+    </li>
+{% endfor %}
+  </ul>
+{% endif %}
+{% if not branch.siblings and not branch.children %}
+  <p class="empty-state">{{ t("dash.branch.empty") }}</p>
+{% endif %}
+</section>
+{% endif %}
+
+{# --------------------------------------------------- progress + ready queue #}
+<div class="dash-columns">
+  <section class="panel" aria-labelledby="progress-heading">
+    <h2 id="progress-heading">{{ t("dash.progress") }}</h2>
+    <div class="stats">
+      <div class="stat"><span class="stat-value">{{ progress.total }}</span><span class="stat-label">{{ t("dash.progress.total") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.done }}</span><span class="stat-label">{{ t("dash.progress.done") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.active }}</span><span class="stat-label">{{ t("dash.progress.active") }}</span></div>
+      <div class="stat stat--blocked"><span class="stat-value">{{ progress.blocked }}</span><span class="stat-label">{{ t("dash.progress.blocked") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.pending }}</span><span class="stat-label">{{ t("dash.progress.pending") }}</span></div>
+      <div class="stat"><span class="stat-value">{{ progress.deferred }}</span><span class="stat-label">{{ t("dash.progress.deferred") }}</span></div>
+    </div>
+    <p class="progress-note">{{ t("dash.progress.note") }}</p>
+  </section>
+
+  <section class="panel" aria-labelledby="queue-heading">
+    <h2 id="queue-heading">{{ t("dash.queue") }}</h2>
+    <p class="muted panel-hint">{{ t("dash.queue.hint") }}</p>
+{% if next_queue %}
+    <ul class="ref-list">
+{% for ref in next_queue %}
+      <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span>{{ ref.status.label }}</span></li>
+{% endfor %}
+    </ul>
+{% else %}
+    <p class="empty-state">{{ t("dash.queue.empty") }}</p>
+{% endif %}
+  </section>
+</div>
+
+{# -------------------------------------------------------- recently updated #}
 <section class="panel" aria-labelledby="recent-heading">
-  <h2 id="recent-heading">Recently Updated</h2>
+  <h2 id="recent-heading">{{ t("dash.recent") }}</h2>
 {% if recently_updated %}
   <div class="table-scroll">
     <table class="table">
       <thead>
-        <tr><th scope="col">Updated</th><th scope="col">Node</th><th scope="col">Status</th></tr>
+        <tr><th scope="col">{{ t("dash.col.updated") }}</th><th scope="col">{{ t("dash.col.node") }}</th><th scope="col">{{ t("dash.col.status") }}</th></tr>
       </thead>
       <tbody>
 {% for row in recently_updated %}
         <tr>
           <td class="mono nowrap">{{ row.date }}</td>
-          <td><a href="{{ row.node.url }}"><span class="mono">{{ row.node.id }}</span> — {{ row.node.title }}</a></td>
-          <td><span class="badge" data-status="{{ row.node.status }}">{{ row.node.status }}</span></td>
+          <td><a href="{{ row.node.url }}"><span class="mono">{{ row.node.id }}</span> {{ row.node.title }}</a></td>
+          <td><span class="badge" data-status="{{ row.node.status.raw }}"><span class="shape" aria-hidden="true">{{ row.node.status.shape }}</span>{{ row.node.status.label }}</span></td>
         </tr>
 {% endfor %}
       </tbody>
     </table>
   </div>
 {% else %}
-  <p class="empty-state">No nodes yet.</p>
-{% endif %}
-</section>
-
-<section class="panel" aria-labelledby="queue-heading">
-  <h2 id="queue-heading">Next Queue</h2>
-  <p class="muted panel-hint">Nodes that have not started and whose dependencies are all DONE.</p>
-{% if next_queue %}
-  <ul class="ref-list">
-{% for ref in next_queue %}
-    <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> — {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status }}">{{ ref.status }}</span></li>
-{% endfor %}
-  </ul>
-{% else %}
-  <p class="empty-state">No nodes are ready to start.</p>
+  <p class="empty-state">{{ t("dash.recent.empty") }}</p>
 {% endif %}
 </section>
 {% endblock %}

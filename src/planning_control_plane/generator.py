@@ -17,10 +17,22 @@ Rules this module commits to:
 * **Offline** — pages reference only sibling files, so the site works when
   ``index.html`` is opened directly over ``file://``.
 
-The planning tree rendered in the sidebar and on the dashboard always
-contains every node exactly once: nodes unreachable from a root (parent
-cycles, orphans) are re-attached as extra roots instead of disappearing or
-looping forever.
+The planning tree rendered in the sidebar always contains every node exactly
+once: nodes unreachable from a root (parent cycles, orphans) are re-attached
+as extra roots instead of disappearing or looping forever.
+
+UI V0.1.1 (Owner Decisions UI-D1…UI-D6) adds a presentation layer on top of
+the same projection:
+
+* the whole planning tree lives in the sidebar only; the dashboard shows
+  orientation, exceptions and next work (UI-D3);
+* decisions are ranked blocking → open → own frozen → inherited frozen →
+  deferred, with inherited groups collapsed per ancestor (UI-D4);
+* every human-facing label goes through :mod:`planning_control_plane.i18n`
+  while ids and stored enum values stay raw (UI-D2).
+
+None of that touches planning semantics: no node schema field, no
+inheritance rule, no capsule content and no status lifecycle changed.
 """
 
 from __future__ import annotations
@@ -28,14 +40,17 @@ from __future__ import annotations
 import re
 import shutil
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from planning_control_plane import i18n
 from planning_control_plane.graph import PlanningGraph
 from planning_control_plane.model import (
     NODE_ID_RE,
     Decision,
+    NodeStatus,
     PCPError,
     Project,
     TrackStatus,
@@ -114,34 +129,104 @@ def _safe_id_map(project: Project) -> dict[str, str]:
     return mapping
 
 
+@dataclass(frozen=True)
+class _Ctx:
+    """Everything the view builders need, per rendered page kind.
+
+    *prefix* is the relative path back to the site root: ``""`` on the
+    dashboard, ``"../"`` on node pages.
+    """
+
+    project: Project
+    graph: PlanningGraph
+    safe: dict[str, str]
+    locale: str
+    prefix: str
+
+
+def _status_view(locale: str, status: str) -> dict:
+    """Triple encoding of one overall status: text + shape + raw enum.
+
+    ``label`` is what a human reads, ``raw`` is the stored enum value that
+    the CLI and the capsule use, and ``shape`` makes status legible without
+    relying on colour (spec §13, UI-D2). For ``en`` label equals raw, so
+    English pages never print the same value twice.
+    """
+    return {
+        "raw": status,
+        "label": i18n.status_label(locale, status),
+        "shape": i18n.status_shape(status),
+    }
+
+
+def _track_view(locale: str, key: str, value: str) -> dict:
+    """One of the three independent tracks (spec §11, §34)."""
+    raw = _track_display(value)
+    return {
+        "key": key,
+        "label": i18n.translator(locale)(f"node.track.{key}"),
+        "status_label": i18n.track_label(locale, value),
+        "raw": raw,
+        "shape": i18n.track_shape(value),
+    }
+
+
 def _decision_view(decision: Decision) -> dict:
     return {"id": decision.id, "summary": decision.summary, "source": decision.source or ""}
 
 
-def _node_ref(project: Project, node_id: str, safe: dict[str, str], prefix: str) -> dict:
-    """Template-facing reference to a node; *prefix* is ``""`` on the
-    dashboard and ``"../"`` on node pages.
+def _decision_group(decisions: list[Decision]) -> dict:
+    """A decision list plus the source-deduplication decision (spec §31).
+
+    When every decision in the group carries the *same* source path, that
+    path is shown once in the group header and dropped from the rows;
+    otherwise each row shows the basename (full path in ``title``) so a
+    long repeated path can never take half the row width (spec §32).
+    """
+    views = [_decision_view(decision) for decision in decisions]
+    sources = [view["source"] for view in views]
+    distinct = sorted({source for source in sources if source})
+    shared = distinct[0] if len(distinct) == 1 and all(sources) else ""
+    for view in views:
+        view["show_source"] = bool(view["source"]) and not shared
+        view["source_short"] = view["source"].rsplit("/", 1)[-1] if view["source"] else ""
+    return {
+        "decisions": views,
+        "count": len(views),
+        "shared_source": shared,
+        "shared_source_short": shared.rsplit("/", 1)[-1] if shared else "",
+        "source_count": len(distinct),
+    }
+
+
+def _node_ref(ctx: _Ctx, node_id: str) -> dict:
+    """Template-facing reference to a node.
 
     Unknown ids (dangling ``depends_on`` targets etc.) are kept as plain
     text with ``known=False`` — the generator never fabricates a link to a
     page it did not generate.
     """
-    node = project.nodes.get(node_id)
+    node = ctx.project.nodes.get(node_id)
     if node is None:
-        return {"id": node_id, "known": False, "title": "", "status": "", "url": ""}
+        return {
+            "id": node_id,
+            "known": False,
+            "title": "",
+            "status": _status_view(ctx.locale, ""),
+            "url": "",
+        }
     return {
         "id": node_id,
         "known": True,
         "title": node.title,
-        "status": node.status,
-        "url": f"{prefix}nodes/{safe[node_id]}.html",
+        "status": _status_view(ctx.locale, node.status),
+        "url": f"{ctx.prefix}nodes/{ctx.safe[node_id]}.html",
     }
 
 
-def _sorted_refs(project: Project, node_ids: list[str], safe: dict[str, str], prefix: str) -> list[dict]:
+def _sorted_refs(ctx: _Ctx, node_ids: list[str]) -> list[dict]:
     """Node references sorted by id (missing targets included, sorted in)."""
-    refs = [_node_ref(project, node_id, safe, prefix) for node_id in node_ids]
-    return sorted(refs, key=lambda ref: ref["id"])
+    return sorted((_node_ref(ctx, node_id) for node_id in node_ids), key=lambda ref: ref["id"])
 
 
 def _source_views(project: Project, paths: list[str]) -> list[dict]:
@@ -175,8 +260,9 @@ def _capsule_text(project: Project, node_id: str) -> str:
     """Session resume capsule shown on node pages (spec §27).
 
     The capsule must match ``pcp context <node-id>`` output, so it is always
-    produced by the context module. Any failure degrades to an explicit
-    note in the page instead of aborting the whole build.
+    produced by the context module — locale never enters here (UI-D2). Any
+    failure degrades to an explicit note in the page instead of aborting
+    the whole build.
     """
     try:
         from planning_control_plane import context
@@ -186,18 +272,30 @@ def _capsule_text(project: Project, node_id: str) -> str:
         return f"(context capsule unavailable: {type(exc).__name__}: {exc})"
 
 
+def _capsule_stats(locale: str, text: str) -> dict:
+    """Line count and byte size of a capsule, for the resume panel (spec §35)."""
+    lines = len(text.splitlines())
+    size = len(text.encode("utf-8"))
+    size_text = f"{size / 1024:.1f} KB" if size >= 1024 else f"{size} B"
+    return {
+        "lines": lines,
+        "bytes": size,
+        "size": size_text,
+        "summary": i18n.translator(locale)("node.resume.size", lines=lines, size=size_text),
+    }
+
+
 # --------------------------------------------------------------------------
 # planning tree
 # --------------------------------------------------------------------------
 
 
 def _build_forest(
-    graph: PlanningGraph,
+    ctx: _Ctx,
     seeds: list[str],
     claimed: set[str],
     focus_id: str | None,
     current_page_id: str | None,
-    safe: dict[str, str],
 ) -> list[dict]:
     """Turn *seeds* into a nested list of tree view items, iteratively.
 
@@ -206,6 +304,7 @@ def _build_forest(
     at most once per page. Children stay in sorted order (nearest-first
     siblings), matching the deterministic-output rule.
     """
+    graph = ctx.graph
     stack: list[tuple[str, str]] = [(seed, "") for seed in reversed(seeds)]
     owner: dict[str, str] = {}  # node id -> id of the item that claims it ("" = root)
     pre_order: list[str] = []
@@ -232,8 +331,9 @@ def _build_forest(
         items[node_id] = {
             "id": node_id,
             "title": node.title or node_id,
-            "status": node.status,
-            "file": f"{safe[node_id]}.html",
+            "status": _status_view(ctx.locale, node.status),
+            "stem": ctx.safe[node_id],
+            "file": f"{ctx.safe[node_id]}.html",
             "is_focus": focus_id is not None and node_id == focus_id,
             "is_current": current_page_id is not None and node_id == current_page_id,
             "children": [items[child] for child in children_of[node_id]],
@@ -241,19 +341,14 @@ def _build_forest(
     return [items[node_id] for node_id in pre_order if not owner[node_id]]
 
 
-def _planning_tree(
-    graph: PlanningGraph,
-    focus_id: str | None,
-    current_page_id: str | None,
-    safe: dict[str, str],
-) -> list[dict]:
+def _planning_tree(ctx: _Ctx, focus_id: str | None, current_page_id: str | None) -> list[dict]:
     """Whole-tree view items: roots first, then any node a parent cycle or
     orphaned subtree kept unreachable from a root."""
     claimed: set[str] = set()
-    forest = _build_forest(graph, graph.roots, claimed, focus_id, current_page_id, safe)
-    leftovers = [node_id for node_id in sorted(graph.nodes) if node_id not in claimed]
+    forest = _build_forest(ctx, ctx.graph.roots, claimed, focus_id, current_page_id)
+    leftovers = [node_id for node_id in sorted(ctx.graph.nodes) if node_id not in claimed]
     if leftovers:
-        forest.extend(_build_forest(graph, leftovers, claimed, focus_id, current_page_id, safe))
+        forest.extend(_build_forest(ctx, leftovers, claimed, focus_id, current_page_id))
     return forest
 
 
@@ -262,29 +357,36 @@ def _planning_tree(
 # --------------------------------------------------------------------------
 
 
-def _base_context(
-    project: Project,
-    graph: PlanningGraph,
-    safe: dict[str, str],
-    current_page_id: str | None,
-    prefix: str,
-) -> dict:
-    """Context every page shares: project name, relative link bases and the
-    sidebar planning tree (with the current focus highlighted)."""
+def _base_context(ctx: _Ctx, current_page_id: str | None) -> dict:
+    """Context every page shares: project name, locale, relative link bases
+    and the sidebar planning tree (with the current focus highlighted).
+
+    The sidebar owns the full planning topology; no other region of the
+    site renders the whole tree again (UI-D3).
+    """
+    project = ctx.project
     return {
         "project_name": project.config.name or project.config.id,
+        "locale": ctx.locale,
+        "html_lang": i18n.html_lang(ctx.locale),
+        "t": i18n.translator(ctx.locale),
         "focus_id": project.config.current_focus,
-        "tree": _planning_tree(graph, project.config.current_focus, current_page_id, safe),
+        "tree": _planning_tree(ctx, project.config.current_focus, current_page_id),
         "base": {
-            "index": f"{prefix}index.html",
-            "nodes": f"{prefix}nodes/",
-            "assets": f"{prefix}assets/",
+            "index": f"{ctx.prefix}index.html",
+            "nodes": f"{ctx.prefix}nodes/",
+            "assets": f"{ctx.prefix}assets/",
         },
     }
 
 
-def _focus_view(project: Project, graph: PlanningGraph, safe: dict[str, str]) -> dict:
-    """Dashboard "Current Focus" panel data (spec §24)."""
+def _focus_view(ctx: _Ctx) -> dict:
+    """Dashboard "Current Focus" card data (spec §19, §24).
+
+    Answers the four orientation questions in one card: where we are, what
+    happens next, whether we are blocked, and how to resume.
+    """
+    project = ctx.project
     focus_id = project.config.current_focus
     if not focus_id:
         return {"set": False, "missing": False}
@@ -292,7 +394,7 @@ def _focus_view(project: Project, graph: PlanningGraph, safe: dict[str, str]) ->
     if node is None:
         return {"set": True, "missing": True, "id": focus_id}
 
-    ancestors = graph.ancestors(focus_id)  # nearest parent first
+    ancestors = ctx.graph.ancestors(focus_id)  # nearest parent first
     phase_id = next(
         (ancestor for ancestor in ancestors if project.nodes[ancestor].type == NodeType.PHASE.value),
         None,
@@ -300,19 +402,61 @@ def _focus_view(project: Project, graph: PlanningGraph, safe: dict[str, str]) ->
     if phase_id is None and ancestors:
         phase_id = ancestors[-1]  # fall back to the topmost ancestor
 
+    capsule = _capsule_text(project, focus_id)
     return {
         "set": True,
         "missing": False,
         "id": node.id,
         "title": node.title,
-        "status": node.status,
-        "url": f"nodes/{safe[node.id]}.html",
-        "phase": _node_ref(project, phase_id, safe, "") if phase_id is not None else None,
+        "type": node.type,
+        "status": _status_view(ctx.locale, node.status),
+        "url": f"nodes/{ctx.safe[node.id]}.html",
+        "phase": _node_ref(ctx, phase_id) if phase_id is not None else None,
+        "parent_path": [_node_ref(ctx, crumb) for crumb in reversed(ancestors)],
         "next_action": node.next_action,
-        "blocked_by": [
-            _node_ref(project, dep_id, safe, "") for dep_id in graph.blocked_by(node)
+        "last_updated": node.last_updated,
+        "tracks": [
+            _track_view(ctx.locale, "discussion", node.discussion_status),
+            _track_view(ctx.locale, "writeback", node.writeback_status),
+            _track_view(ctx.locale, "implementation", node.implementation_status),
         ],
-        "blocking_decisions": [_decision_view(d) for d in node.blocking_decisions],
+        "blocked_by": [_node_ref(ctx, dep_id) for dep_id in ctx.graph.blocked_by(node)],
+        "blocking_decisions": _decision_group(node.blocking_decisions),
+        "capsule": capsule,
+        "capsule_stats": _capsule_stats(ctx.locale, capsule),
+    }
+
+
+def _focus_branch(ctx: _Ctx) -> dict:
+    """The branch around the current focus (spec §21).
+
+    Deliberately *not* the whole tree: the lineage down to the focus, its
+    siblings and its direct children — enough to orient, while the sidebar
+    keeps ownership of the global topology (UI-D3).
+    """
+    project = ctx.project
+    focus_id = project.config.current_focus
+    if not focus_id or focus_id not in project.nodes:
+        return {"set": False}
+
+    node = project.nodes[focus_id]
+    ancestors = ctx.graph.ancestors(focus_id)
+    parent_id = node.parent if node.parent in project.nodes else None
+
+    siblings: list[dict] = []
+    if parent_id is not None:
+        for sibling_id in ctx.graph.children(parent_id):
+            ref = _node_ref(ctx, sibling_id)
+            ref["is_current"] = sibling_id == focus_id
+            siblings.append(ref)
+
+    children = [_node_ref(ctx, child_id) for child_id in ctx.graph.children(focus_id)]
+    return {
+        "set": True,
+        "lineage": [_node_ref(ctx, crumb) for crumb in reversed(ancestors)],
+        "current": _node_ref(ctx, focus_id),
+        "siblings": siblings,
+        "children": children,
     }
 
 
@@ -328,24 +472,56 @@ def _progress_view(project: Project) -> dict:
     }
 
 
-def _blocking_rows(project: Project, safe: dict[str, str]) -> list[dict]:
+def _blocking_rows(ctx: _Ctx) -> list[dict]:
     """All blocking decisions across the graph, grouped by owning node."""
     rows: list[dict] = []
-    for node_id in project.sorted_node_ids():
-        node = project.nodes[node_id]
+    for node_id in ctx.project.sorted_node_ids():
+        node = ctx.project.nodes[node_id]
         if not node.blocking_decisions:
             continue
         rows.append(
             {
-                "node": _node_ref(project, node_id, safe, ""),
-                "decisions": [_decision_view(d) for d in node.blocking_decisions],
+                "node": _node_ref(ctx, node_id),
+                "group": _decision_group(node.blocking_decisions),
             }
         )
     return rows
 
 
-def _recently_updated(project: Project, safe: dict[str, str], limit: int) -> list[dict]:
+def _needs_attention(ctx: _Ctx) -> dict:
+    """Everything that should stop work, in one place (spec §20).
+
+    ``any`` is false when the project has no exceptions at all; the
+    dashboard then renders no exception panel whatsoever rather than a
+    permanently red "nothing wrong" card.
+    """
+    project = ctx.project
+    blocking_rows = _blocking_rows(ctx)
+    blocked_nodes = [
+        _node_ref(ctx, node_id)
+        for node_id in project.sorted_node_ids()
+        if project.nodes[node_id].status == NodeStatus.BLOCKED.value
+    ]
+
+    deferred_deps: list[dict] = []
+    focus_id = project.config.current_focus
+    if focus_id and focus_id in project.nodes:
+        state = ctx.graph.dependency_state(project.nodes[focus_id])
+        deferred_deps = [_node_ref(ctx, dep_id) for dep_id in state["deferred"] + state["missing"]]
+
+    blocking_count = sum(row["group"]["count"] for row in blocking_rows)
+    return {
+        "any": bool(blocking_rows or blocked_nodes or deferred_deps),
+        "blocking_rows": blocking_rows,
+        "blocking_count": blocking_count,
+        "blocked_nodes": blocked_nodes,
+        "deferred_deps": deferred_deps,
+    }
+
+
+def _recently_updated(ctx: _Ctx, limit: int) -> list[dict]:
     """Newest ``last_updated`` first; same date by id ascending; undated last."""
+    project = ctx.project
     dated = [node for node in project.nodes.values() if node.last_updated]
     undated = [node for node in project.nodes.values() if not node.last_updated]
     dated.sort(key=lambda node: node.id)
@@ -353,36 +529,32 @@ def _recently_updated(project: Project, safe: dict[str, str], limit: int) -> lis
     undated.sort(key=lambda node: node.id)
     ordered = dated + undated
     return [
-        {"node": _node_ref(project, node.id, safe, ""), "date": node.last_updated}
+        {"node": _node_ref(ctx, node.id), "date": node.last_updated}
         for node in ordered[:limit]
     ]
 
 
-def _index_context(project: Project, graph: PlanningGraph, safe: dict[str, str]) -> dict:
-    view = _base_context(project, graph, safe, current_page_id=None, prefix="")
+def _index_context(ctx: _Ctx) -> dict:
+    view = _base_context(ctx, current_page_id=None)
     view.update(
-        focus=_focus_view(project, graph, safe),
-        progress=_progress_view(project),
-        blocking_rows=_blocking_rows(project, safe),
-        recently_updated=_recently_updated(project, safe, _RECENT_LIMIT),
-        next_queue=[_node_ref(project, node_id, safe, "") for node_id in graph.ready_queue()],
+        focus=_focus_view(ctx),
+        attention=_needs_attention(ctx),
+        branch=_focus_branch(ctx),
+        progress=_progress_view(ctx.project),
+        recently_updated=_recently_updated(ctx, _RECENT_LIMIT),
+        next_queue=[_node_ref(ctx, node_id) for node_id in ctx.graph.ready_queue()],
     )
     return view
 
 
-def _node_context(
-    project: Project,
-    graph: PlanningGraph,
-    node_id: str,
-    safe: dict[str, str],
-) -> dict:
+def _node_context(ctx: _Ctx, node_id: str) -> dict:
+    project = ctx.project
     node = project.nodes[node_id]
-    prefix = "../"
-    view = _base_context(project, graph, safe, current_page_id=node_id, prefix=prefix)
+    view = _base_context(ctx, current_page_id=node_id)
 
     breadcrumb: list[dict] = []
-    for crumb_id in graph.parent_path(node_id):  # root-first, self last
-        crumb = _node_ref(project, crumb_id, safe, prefix)
+    for crumb_id in ctx.graph.parent_path(node_id):  # root-first, self last
+        crumb = _node_ref(ctx, crumb_id)
         crumb["current"] = crumb_id == node_id
         breadcrumb.append(crumb)
 
@@ -390,56 +562,60 @@ def _node_context(
     # deduplicated by decision id so repeated inheritance cannot bloat the
     # page (spec §14). Ids the node declares itself are shadowed — they
     # belong to the "Frozen Decisions" section — matching the capsule.
+    # UI-D4: the nearest ancestor group renders open, higher ancestors
+    # render collapsed, and every group always states its decision count.
     inherited: list[dict] = []
     seen_decision_ids: set[str] = {decision.id for decision in node.frozen_decisions}
-    for ancestor_id in graph.ancestors(node_id):
+    for ancestor_id in ctx.graph.ancestors(node_id):
         decisions = []
         for decision in project.nodes[ancestor_id].frozen_decisions:
             if decision.id in seen_decision_ids:
                 continue
             seen_decision_ids.add(decision.id)
-            decisions.append(_decision_view(decision))
+            decisions.append(decision)
         if decisions:
             inherited.append(
                 {
-                    "ancestor": _node_ref(project, ancestor_id, safe, prefix),
-                    "decisions": decisions,
+                    "ancestor": _node_ref(ctx, ancestor_id),
+                    "group": _decision_group(decisions),
+                    "open": not inherited,  # nearest ancestor only
                 }
             )
 
+    capsule = _capsule_text(project, node_id)
     view.update(
         node={
             "id": node.id,
             "title": node.title,
             "type": node.type,
-            "status": node.status,
+            "status": _status_view(ctx.locale, node.status),
+            "is_focus": project.config.current_focus == node.id,
             "objective": node.objective,
             "next_action": node.next_action,
             "last_updated": node.last_updated,
             "scope": list(node.scope),
             "out_of_scope": list(node.out_of_scope),
-            "frozen_decisions": [_decision_view(d) for d in node.frozen_decisions],
-            "open_decisions": [_decision_view(d) for d in node.open_decisions],
-            "blocking_decisions": [_decision_view(d) for d in node.blocking_decisions],
-            "deferred_decisions": [_decision_view(d) for d in node.deferred_decisions],
+            "frozen": _decision_group(node.frozen_decisions),
+            "open": _decision_group(node.open_decisions),
+            "blocking": _decision_group(node.blocking_decisions),
+            "deferred": _decision_group(node.deferred_decisions),
             "canonical_sources": _source_views(project, node.canonical_sources),
             "evidence_sources": _source_views(project, node.evidence_sources),
         },
         breadcrumb=breadcrumb,
         inherited_frozen=inherited,
-        dependencies=_sorted_refs(project, node.depends_on, safe, prefix),
-        blocks=_sorted_refs(project, node.blocks, safe, prefix),
-        related=[_node_ref(project, rel, safe, prefix) for rel in graph.related_nodes(node_id)],
-        supersedes=_sorted_refs(project, node.supersedes, safe, prefix),
-        superseded_by=[
-            _node_ref(project, sup, safe, prefix) for sup in graph.superseding_nodes(node_id)
+        dependencies=_sorted_refs(ctx, node.depends_on),
+        blocks=_sorted_refs(ctx, node.blocks),
+        related=[_node_ref(ctx, rel) for rel in ctx.graph.related_nodes(node_id)],
+        supersedes=_sorted_refs(ctx, node.supersedes),
+        superseded_by=[_node_ref(ctx, sup) for sup in ctx.graph.superseding_nodes(node_id)],
+        tracks=[
+            _track_view(ctx.locale, "discussion", node.discussion_status),
+            _track_view(ctx.locale, "writeback", node.writeback_status),
+            _track_view(ctx.locale, "implementation", node.implementation_status),
         ],
-        tracks={
-            "discussion": _track_display(node.discussion_status),
-            "writeback": _track_display(node.writeback_status),
-            "implementation": _track_display(node.implementation_status),
-        },
-        capsule=_capsule_text(project, node_id),
+        capsule=capsule,
+        capsule_stats=_capsule_stats(ctx.locale, capsule),
     )
     return view
 
@@ -477,6 +653,10 @@ def build_site(project: Project, out_dir: Path) -> list[Path]:
     templates) and one ``nodes/<safe-id>.html`` per node. Returns the
     written paths, sorted.
 
+    The generated language comes from ``ui.locale`` in the project config
+    (already resolved to a supported locale by the loader), so the same
+    planning source plus the same config always yields the same bytes.
+
     Raises :class:`PCPError` when *out_dir* would destroy the planning
     data (see :func:`_ensure_safe_output_dir`).
     """
@@ -495,6 +675,9 @@ def build_site(project: Project, out_dir: Path) -> list[Path]:
     env = _make_env()
     graph = PlanningGraph(project)
     safe = _safe_id_map(project)
+    locale = i18n.resolve_locale(project.config.ui.locale)
+    index_ctx = _Ctx(project=project, graph=graph, safe=safe, locale=locale, prefix="")
+    node_ctx = _Ctx(project=project, graph=graph, safe=safe, locale=locale, prefix="../")
     written: list[Path] = []
 
     for name in _STATIC_FILES:
@@ -503,12 +686,12 @@ def build_site(project: Project, out_dir: Path) -> list[Path]:
         written.append(target)
 
     written.append(
-        _write_text(out_dir / "index.html", env.get_template("index.html").render(**_index_context(project, graph, safe)))
+        _write_text(out_dir / "index.html", env.get_template("index.html").render(**_index_context(index_ctx)))
     )
 
     node_template = env.get_template("node.html")
     for node_id in project.sorted_node_ids():
-        html = node_template.render(**_node_context(project, graph, node_id, safe))
+        html = node_template.render(**_node_context(node_ctx, node_id))
         written.append(_write_text(nodes_dir / f"{safe[node_id]}.html", html))
 
     return sorted(written)

@@ -1,30 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ html_lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ project_name }} · Planning Control Plane{% endblock %}</title>
+  <title>{% block title %}{{ project_name }} · {{ t("site.tool") }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ base.assets }}style.css">
 </head>
 <body>
-<a class="skip-link" href="#main-content">Skip to main content</a>
+<a class="skip-link" href="#main-content">{{ t("site.skip") }}</a>
 <div class="layout">
-  <aside class="sidebar" id="sidebar" aria-label="Planning tree">
+  <aside class="sidebar" id="sidebar" aria-label="{{ t("site.sidebar_tree_label") }}">
     <div class="sidebar-head">
       <a class="sidebar-project" href="{{ base.index }}">{{ project_name }}</a>
+      <p class="sidebar-tool">{{ t("site.tool") }}</p>
     </div>
-    <nav class="sidebar-nav" aria-label="Planning tree">
 {% if tree %}
-      <ul role="tree" aria-label="Planning tree" class="tree">
+    <div class="tree-controls">
+      <button type="button" class="tree-control" data-tree-action="expand">{{ t("site.expand_all") }}</button>
+      <button type="button" class="tree-control" data-tree-action="collapse">{{ t("site.collapse_all") }}</button>
+    </div>
+{% endif %}
+    <nav class="sidebar-nav" aria-label="{{ t("site.sidebar_tree_label") }}">
+{% if tree %}
+      <ul role="tree" aria-label="{{ t("site.sidebar_tree_label") }}" class="tree" id="planning-tree">
 {% for item in tree recursive %}
-        <li role="treeitem" tabindex="0" class="treeitem{% if item.is_current %} is-current-page{% endif %}{% if item.is_focus %} is-focus{% endif %}"{% if item.children %} aria-expanded="true"{% endif %}>
-          <span class="treeitem-row">
-            <a class="tree-link" href="{{ base.nodes }}{{ item.file }}"{% if item.is_current %} aria-current="page"{% endif %} title="{{ item.id }} — {{ item.title }}"><span class="tree-id">{{ item.id }}</span><span class="tree-title">{{ item.title }}</span></a>
-{% if item.is_focus %}<span class="focus-flag" title="Current focus">focus</span>
-{% endif %}<span class="badge" data-status="{{ item.status }}">{{ item.status }}</span>
-          </span>
+        <li role="treeitem" class="treeitem{% if item.is_current %} is-current-page{% endif %}{% if item.is_focus %} is-focus{% endif %}" data-node-id="{{ item.id }}" data-status="{{ item.status.raw }}"{% if item.children %} aria-expanded="true"{% endif %}{% if item.is_current %} data-current-page="true"{% endif %}>
+          <div class="treeitem-row">
 {% if item.children %}
-          <ul role="group">
+            <button type="button" class="tree-toggle" aria-expanded="true" aria-controls="tg-{{ item.stem }}" aria-label="{{ item.id }}"><span class="tree-caret" aria-hidden="true"></span></button>
+{% else %}
+            <span class="tree-toggle tree-toggle--leaf" aria-hidden="true"></span>
+{% endif %}
+            <a class="tree-link" href="{{ base.nodes }}{{ item.file }}" title="{{ item.id }} — {{ item.title }}"{% if item.is_current %} aria-current="page"{% elif item.is_focus %} aria-current="true"{% endif %}>
+              <span class="tree-line">
+                <span class="tree-id">{{ item.id }}</span>
+{% if item.is_focus %}
+                <span class="focus-pill" title="{{ t("node.focus_title") }}">{{ t("node.focus_flag") }}</span>
+{% endif %}
+                <span class="badge" data-status="{{ item.status.raw }}"><span class="shape" aria-hidden="true">{{ item.status.shape }}</span>{{ item.status.label }}</span>
+              </span>
+              <span class="tree-title">{{ item.title }}</span>
+            </a>
+          </div>
+{% if item.children %}
+          <ul role="group" id="tg-{{ item.stem }}">
 {{ loop(item.children) }}
           </ul>
 {% endif %}
@@ -32,31 +51,29 @@
 {% endfor %}
       </ul>
 {% else %}
-      <p class="sidebar-empty">No planning nodes.</p>
+      <p class="sidebar-empty">{{ t("site.no_nodes") }}</p>
 {% endif %}
     </nav>
   </aside>
   <div class="frame">
     <header class="topbar">
       <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="false">
-        <span aria-hidden="true">☰</span><span>Tree</span>
+        <span aria-hidden="true">☰</span><span>{{ t("site.tree") }}</span>
       </button>
-      <div class="topbar-titles">
-        <span class="topbar-project">{{ project_name }}</span>
-        <span class="topbar-tool">Planning Control Plane</span>
-      </div>
-      <a class="topbar-dashboard" href="{{ base.index }}">Dashboard</a>
+      <span class="topbar-project">{{ project_name }}</span>
+      <a class="topbar-dashboard" href="{{ base.index }}">{{ t("site.dashboard") }}</a>
     </header>
     <main class="content" id="main-content">
 {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">
-      <p class="footer-title">Planning Control Plane</p>
-      <p>This view is authoritative only for planning structure and planning progress.</p>
-      <p>Normative product, governance, architecture, and implementation semantics remain owned by the linked project artifacts.</p>
+      <p class="footer-title">{{ t("site.tool") }}</p>
+      <p>{{ t("site.footer.boundary") }}</p>
+      <p>{{ t("site.footer.ownership") }}</p>
     </footer>
   </div>
 </div>
+<p class="copy-status" role="status" aria-live="polite"></p>
 <script src="{{ base.assets }}app.js"></script>
 </body>
 </html>

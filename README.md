@@ -150,6 +150,26 @@ PCP 只负责保存、继承、展示决策，不判断决策是否正确。
 
 `canonical_sources` 指向仓库内对该主题具有规范效力（normative）的文档；`evidence_sources` 指向佐证与背景材料。两类分开存储、分开校验，不混为一类。路径必须是 repository-relative（仓库相对路径）；PCP 只检查文件存在性，不读取或判定其内容。
 
+### Generated UI：布局与 locale
+
+`pcp build` 生成的 HTML 是规划数据的投影，分工固定：左侧 sidebar 承载完整 Planning Tree（全局拓扑），Dashboard 主区只回答「现在在哪 / 有没有阻塞 / 下一步做什么 / 怎么恢复」，因此主区不再重复渲染整棵树。节点详情页按控制面优先级排列：sticky header（Node ID、标题、状态、focus 标记、更新日期、三轨状态、Copy Context）→ Next Action → Objective → Scope Guard → 决策（Blocking → Open → Frozen）→ 关联与来源 → Resume This Work。继承的 frozen decisions 按祖先分组折叠（最近的祖先默认展开，更上层默认折叠），分组标题始终显示祖先、条数与来源。
+
+界面语言由 `project.yaml` 的 `ui.locale` 显式指定：
+
+```yaml
+ui:
+  locale: zh-CN
+```
+
+- 默认值：`en`。不写 `ui` 段时行为与 V0.1 完全一致。
+- 支持的取值：`en`、`zh-CN`。
+- 取值不在支持列表时：回退到 `en` 并输出 WARNING（`unknown-ui-locale`），不阻断 build。
+- locale 是显式配置，不从 project name、数据中的中文字符、操作系统 locale 或环境变量推断；相同规划数据 + 相同配置永远生成相同字节。
+
+Localization 只作用于**人类可见的界面文案**（presentation-only）。以下内容在任何 locale 下都保持原值：Planning Node ID、Decision ID、YAML 中存储的枚举值、`pcp context` capsule、`pcp status` / `pcp validate` 等 CLI 的 machine-facing 输出。页面上状态的展示规则是：sidebar、表格、队列等紧凑位置只显示本地化文案；节点详情页头部与三轨状态显示「本地化文案 + 原始枚举」（例如 `未开始 NOT_STARTED`），因此原始枚举在页面上始终可见、可搜索。`en` 下本地化文案就是枚举本身，页面不会把同一个值印两遍。
+
+生成页面不依赖任何 CDN、远程字体或网络请求；中文字体走离线 system font stack（PingFang SC / Microsoft YaHei / Noto Sans CJK SC 等），在 Windows / macOS / Linux 上均有可用回退。
+
 ## CLI 参考
 
 | 命令 | 说明 |
@@ -192,6 +212,7 @@ ERROR  P2-A4        done-with-blocking-decision: status is DONE but blocking_dec
 - `unsafe-output-directory`：`output.directory` 解析结果等于或包含 `.planning/`（含仓库根）——`pcp build` 重建输出目录会删除规划数据，直接拒绝。
 - `ignored-node-file`（WARNING）：`nodes/` 下存在但不会被读取的 YAML 文件（如 `.yml` 后缀、子目录内），提示避免规划数据静默丢失。
 - `unknown-field`（WARNING）：节点或 `project.yaml` 中存在 schema 之外的键。
+- `unknown-ui-locale`（WARNING）：`ui.locale` 不在支持列表（`en` / `zh-CN`）内或不是非空字符串；回退到 `en`，不阻断 build。
 
 另有两类加载期硬失败（`LoadError`，exit 2）：YAML 语法错误，以及同一映射内出现重复键（如两个 `nodes:` 段或两个 `current_focus:` 键）——后者是歧义文件，拒绝加载而不是静默取后值。
 
@@ -240,6 +261,25 @@ V0.1 明确不做（不是未完成，而是范围外）：
 
 `pcp prompt`、`pcp close`、`pcp reopen`、Git Adapter、GitHub Adapter、Claude Code Adapter、Codex Adapter、ChatGPT Adapter、Multi-project Workspace。
 
+## Upgrade Note：V0.1 → V0.1.1
+
+V0.1.1 只改 UI 层：生成模板、样式与前端脚本重写，新增 `ui.locale` 配置项。Planning Node schema、决策继承规则、Context Capsule 语义、状态生命周期、authority boundary 均未改动，规划数据无需迁移。
+
+升级后请先执行一次 `pcp build` 再使用 `pcp build --check`：模板变了，旧的 `dist/` 与新引擎生成的结果必然不一致，`--check` 会报 drift。这不是 planning data migration，只是重新生成投影。
+
+```bash
+pip install -e .
+pcp build          # 重新生成 dist/
+pcp build --check  # 现在应当 exit 0
+```
+
+需要中文界面时，在 `.planning/project.yaml` 追加：
+
+```yaml
+ui:
+  locale: zh-CN
+```
+
 ## Development
 
 ```bash
@@ -247,7 +287,7 @@ pip install -e ".[dev]"   # 安装 pytest
 python -m pytest
 ```
 
-模块职责分离：`model.py`（数据模型与枚举）、`loader.py`（YAML 加载）、`graph.py`（图操作）、`validator.py`（校验规则）、`context.py`（Context Capsule）、`generator.py` 与 `templates/`（HTML 生成）、`cli.py`（CLI 入口）。
+模块职责分离：`model.py`（数据模型与枚举）、`loader.py`（YAML 加载）、`graph.py`（图操作）、`validator.py`（校验规则）、`context.py`（Context Capsule）、`i18n.py`（生成 UI 的文案表，presentation-only）、`generator.py` 与 `templates/`（HTML 生成）、`cli.py`（CLI 入口）。
 
 ## License
 

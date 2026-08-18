@@ -246,6 +246,27 @@ class AuthorityConfig:
 
 
 @dataclass
+class UIConfig:
+    """Parsed ``ui:`` section of ``project.yaml`` (UI V0.1.1, Owner UI-D1).
+
+    This is a **UI projection configuration**, not planning-node semantics:
+    it only selects the language of the generated human-facing HTML. Node
+    ids, decision ids, stored enum values, ``pcp context`` capsules and the
+    machine-facing CLI output are unaffected (Owner UI-D2).
+
+    ``locale`` is always a supported locale (the loader falls back to the
+    default and records a WARNING for anything else); ``raw_locale`` keeps
+    what the file actually said, for that warning message.
+    """
+
+    #: Resolved, always-supported locale used to render the site.
+    locale: str = "en"
+    #: The value as written in project.yaml (``None`` when the key is absent).
+    raw_locale: str | None = None
+    unknown_keys: list[str] = field(default_factory=list)
+
+
+@dataclass
 class ProjectConfig:
     """Parsed ``.planning/project.yaml``."""
 
@@ -254,6 +275,7 @@ class ProjectConfig:
     current_focus: str | None = None
     authority: AuthorityConfig = field(default_factory=AuthorityConfig)
     output_directory: str = ".planning/dist"
+    ui: UIConfig = field(default_factory=UIConfig)
     unknown_keys: list[str] = field(default_factory=list)
 
 
