@@ -30,6 +30,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
 
+[project.urls]
+Homepage = "https://github.com/LuneHaven/planning-control-plane"
+Repository = "https://github.com/LuneHaven/planning-control-plane"
+Issues = "https://github.com/LuneHaven/planning-control-plane/issues"
+
 [project.scripts]
 pcp = "planning_control_plane.cli:main"
 

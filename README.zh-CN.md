@@ -69,7 +69,7 @@ PCP 尚未发布到 PyPI，请从源码安装（需要 Python 3.11+）。许多�
 系统 Python 受 PEP 668 externally-managed 限制，建议使用虚拟环境：
 
 ```bash
-git clone <仓库地址> planning-control-plane   # 或下载并解压源码
+git clone https://github.com/LuneHaven/planning-control-plane.git planning-control-plane   # 或下载并解压源码
 cd planning-control-plane
 python3 -m venv .venv
 source .venv/bin/activate        # Windows PowerShell: .venv\Scripts\activate
@@ -320,7 +320,6 @@ PCP 只对**规划结构与规划进度**具有权威性。产品、治理、架
 **当前版本：V0.1.2。** V0.1.2 已达到可用 MVP 阶段，并完成真实项目
 Dogfood 验证：引擎、CLI、校验器、capsule 与双语界面均已可用，并有自动化
 测试覆盖（229 个测试）。PCP **尚未发布到 PyPI**——请按上文从源码安装。
-公开仓库也尚未建立。
 
 ## 路线图
 
@@ -341,7 +340,7 @@ V0.2 候选项——**候选，未承诺**；下列条目都尚未实现，也�
 
 ## 参与贡献
 
-公开仓库公布后，欢迎 issue 与 pull request。开发环境：
+欢迎 issue 与 pull request。开发环境：
 
 ```bash
 pip install -e ".[dev]"

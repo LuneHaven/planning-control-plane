@@ -80,7 +80,7 @@ installs on many distributions are externally managed (PEP 668), so use a
 virtual environment:
 
 ```bash
-git clone <repository-url> planning-control-plane   # or download and extract the source
+git clone https://github.com/LuneHaven/planning-control-plane.git planning-control-plane   # or download and extract the source
 cd planning-control-plane
 python3 -m venv .venv
 source .venv/bin/activate        # Windows PowerShell: .venv\Scripts\activate
@@ -346,8 +346,7 @@ Every generated page states this in its footer.
 **Current release: V0.1.2.** V0.1.2 is a usable MVP validated through
 real-project dogfooding: the engine, CLI, validator, capsule and bilingual UI
 all work and are covered by an automated test suite (229 tests). PCP is **not
-yet published on PyPI** — install from source as shown above. No remote
-repository has been set up yet.
+yet published on PyPI** — install from source as shown above.
 
 ## Roadmap
 
@@ -370,8 +369,7 @@ and none is a promise:
 
 ## Contributing
 
-Issues and pull requests are welcome once the public repository is
-announced. For development:
+Issues and pull requests are welcome. For development:
 
 ```bash
 pip install -e ".[dev]"
