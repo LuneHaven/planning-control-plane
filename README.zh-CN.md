@@ -152,7 +152,7 @@ pcp context       # 当前焦点的恢复 capsule
 | `pcp status` | 终端概览：项目、当前焦点、决策计数、进度计数 |
 | `pcp context [node] [--full]` | 输出会话恢复 capsule（默认当前焦点） |
 | `pcp focus [node]` | 查看或切换当前焦点（对 `project.yaml` 做行级编辑，保留注释） |
-| `pcp ideas [--status S] [--for NODE [--subtree]]` | 按状态分组列出想法层。`--for` 选出与某节点或其祖先相关的想法，`--subtree` 切换为该节点的子树方向 |
+| `pcp ideas [--status S] [--for NODE [--subtree]]` | 按状态分组列出想法层。`--for` 选出与某节点或其祖先相关的想法，`--subtree` 切换为该节点的子树方向。`--for` 不带 `--status` 时只列出 OPEN 与 PARKED |
 
 全局参数：`-p/--project-root PATH`——目标仓库根目录（其余命令从该目录
 向上查找 `.planning/`）。
@@ -166,7 +166,7 @@ pcp context       # 当前焦点的恢复 capsule
 承载在此之前的东西——已经捕获、但还没有资格进入计划的思考。
 
 ```
-.planning/ideas/IDEA-0007.yaml     # 每个想法一个文件
+.planning/ideas/IDEA-0007.yaml     # 每个想法一个文件（直接放在 ideas/ 下，.yaml 后缀）
 ```
 
 ```yaml

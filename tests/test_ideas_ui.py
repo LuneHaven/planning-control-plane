@@ -147,8 +147,8 @@ def _page(dist, name):
 
 
 def make_project_room(tmp_path, name=None):
-    """A fresh sub-directory so two builds in one test module never share
-    a repository root."""
+    """A named sub-directory for tests that build more than one repository
+    (and want stable names for them); one-off builds can use tmp_path."""
     room = tmp_path / (name or "room")
     room.mkdir(exist_ok=True)
     return room
@@ -515,11 +515,12 @@ def test_build_summary_counts_the_ideas_page(make_project, tmp_path, cli):
     )
     code, out, _err = cli("-p", str(root), "build")
     assert code == 0
-    assert "+ ideas page" in out
+    assert "(index + 2 node pages + ideas page + assets)" in out
 
 
 def test_build_summary_omits_the_ideas_page_without_ideas(make_project, tmp_path, cli):
     _project, root = make_project(make_project_room(tmp_path), node_dicts=IDEA_NODES)
     code, out, _err = cli("-p", str(root), "build")
     assert code == 0
+    assert "(index + 2 node pages + assets)" in out
     assert "ideas" not in out

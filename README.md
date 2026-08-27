@@ -166,7 +166,7 @@ data sets, not translations of each other (see
 | `pcp status` | Terminal overview: project, current focus, decision counts, progress counts |
 | `pcp context [node] [--full]` | Print the session resume capsule (default: the current focus) |
 | `pcp focus [node]` | Show or switch the current focus (line-oriented edit of `project.yaml`; comments preserved) |
-| `pcp ideas [--status S] [--for NODE [--subtree]]` | List the idea layer, grouped by status. `--for` selects ideas related to a node or its ancestors; `--subtree` switches to the node's subtree |
+| `pcp ideas [--status S] [--for NODE [--subtree]]` | List the idea layer, grouped by status. `--for` selects ideas related to a node or its ancestors; `--subtree` switches to the node's subtree. Under `--for` without `--status`, only OPEN and PARKED are listed |
 
 Global option: `-p/--project-root PATH` — target repository root (other
 commands search upward for `.planning/`).
@@ -181,7 +181,7 @@ something was already committed to. The idea layer holds what comes before
 that — captured thinking that has not earned a place in the plan yet.
 
 ```
-.planning/ideas/IDEA-0007.yaml     # one file per idea
+.planning/ideas/IDEA-0007.yaml     # one file per idea (directly under ideas/, .yaml suffix)
 ```
 
 ```yaml
