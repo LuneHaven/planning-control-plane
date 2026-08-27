@@ -41,6 +41,7 @@ from planning_control_plane.model import (
     PLANNING_DIR,
     Project,
     Severity,
+    idea_sort_key,
 )
 
 #: Exit code: command succeeded.
@@ -465,11 +466,9 @@ def _idea_line(idea: Idea, via: list[str] | None) -> str:
     return "  ".join(parts)
 
 
-def _idea_sort_key(idea: Idea) -> tuple[bool, str, str]:
-    """(empty flag, last_updated, id): oldest non-empty timestamp first so
-    stale ideas surface at the top of their group; entries with no
-    timestamp sort last (spec §60/IDEA-D61)."""
-    return (idea.last_updated == "", idea.last_updated, idea.id)
+#: Ordering inside one status group — shared with the generated ideas page
+#: so the two never disagree (spec IDEA-D61, defined in model.py).
+_idea_sort_key = idea_sort_key
 
 
 def cmd_ideas(args: argparse.Namespace) -> int:

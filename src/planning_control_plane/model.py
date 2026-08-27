@@ -256,6 +256,23 @@ class Idea:
     source_file: str | None = None
 
 
+def idea_sort_key(idea: Idea) -> tuple[bool, str, str]:
+    """Display order inside one idea status group (spec IDEA-D61).
+
+    ``(last_updated is empty, last_updated, id)``: dated ideas sort oldest
+    first so stale thinking surfaces at the top of its group, and undated
+    ideas sort last. ``last_updated`` is an unvalidated free string that
+    defaults to ``""``, so a plain ascending sort would float *undated*
+    ideas rather than *stale* ones — the opposite of the intent.
+
+    The single ordering source for ``pcp ideas`` and the generated ideas
+    page, so the same data never lists in two different orders. Relative
+    order of non-ISO spellings is undefined (documented cost of not
+    validating the format; no date parsing is introduced).
+    """
+    return (idea.last_updated == "", idea.last_updated, idea.id)
+
+
 @dataclass
 class Node:
     """One planning node in the planning graph (spec §8).

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ t("ideas.title") }} · {{ project_name }} · {{ t("site.tool") }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <h1 data-i18n="ideas.title">{{ t("ideas.title") }}</h1>
+  <p class="muted" data-i18n="ideas.subtitle">{{ t("ideas.subtitle") }}</p>
+</header>
+{% for group in groups %}
+<section class="panel ideas-group" data-idea-group="{{ group.status.raw }}" aria-labelledby="ideas-{{ group.status.raw }}">
+  <h2 id="ideas-{{ group.status.raw }}">
+    <span class="idea-badge badge badge--lg" data-idea-status="{{ group.status.raw }}"><span{% if group.status.i18n %} data-i18n="{{ group.status.i18n }}"{% endif %}>{{ group.status.label }}</span>{% if group.status.i18n %} <span class="badge-raw mono">{{ group.status.raw }}</span>{% endif %}</span>
+    <span class="count" data-i18n="ideas.group_count" data-i18n-args='{{ {"n": group.count} | tojson }}'>{{ t("ideas.group_count", n=group.count) }}</span>
+  </h2>
+  <ul class="idea-list">
+{% for idea in group.ideas %}
+    <li class="idea-card" data-idea-id="{{ idea.id }}">
+      <div class="idea-head">
+        <span class="idea-id mono">{{ idea.id }}</span>
+        <span class="idea-title">{{ idea.title }}</span>
+      </div>
+{% if idea.detail %}
+      <p class="idea-detail prose">{{ idea.detail }}</p>
+{% endif %}
+      <dl class="idea-meta">
+        <dt data-i18n="ideas.benchmark">{{ t("ideas.benchmark") }}</dt>
+        <dd>
+{% if idea.benchmark_sources %}
+          <ul class="idea-sources">
+{% for source in idea.benchmark_sources %}
+            <li>{% if source.ref %}<span class="idea-source-ref mono">{{ source.ref }}</span>{% endif %}{% if source.note %}<span class="idea-source-note">{{ source.note }}</span>{% endif %}</li>
+{% endfor %}
+          </ul>
+{% else %}
+          <span class="muted" data-i18n="ideas.no_sources">{{ t("ideas.no_sources") }}</span>
+{% endif %}
+        </dd>
+        <dt data-i18n="ideas.methodology">{{ t("ideas.methodology") }}</dt>
+        <dd>
+{% if idea.methodology_sources %}
+          <ul class="idea-sources">
+{% for source in idea.methodology_sources %}
+            <li>{% if source.ref %}<span class="idea-source-ref mono">{{ source.ref }}</span>{% endif %}{% if source.note %}<span class="idea-source-note">{{ source.note }}</span>{% endif %}</li>
+{% endfor %}
+          </ul>
+{% else %}
+          <span class="muted" data-i18n="ideas.no_sources">{{ t("ideas.no_sources") }}</span>
+{% endif %}
+        </dd>
+{% if idea.relates_to %}
+        <dt data-i18n="ideas.relates_to">{{ t("ideas.relates_to") }}</dt>
+        <dd>
+{% for ref in idea.relates_to %}
+{% if ref.known %}
+          <a class="idea-node-link" href="{{ ref.url }}" title="{{ ref.id }} — {{ ref.title }}"><span class="mono">{{ ref.id }}</span></a>
+{% else %}
+          <span class="idea-node-missing"><span class="mono">{{ ref.id }}</span> <span class="muted" data-i18n="ideas.unknown_node">{{ t("ideas.unknown_node") }}</span></span>
+{% endif %}
+{% endfor %}
+        </dd>
+{% endif %}
+{% if idea.outcome %}
+        <dt data-i18n="ideas.outcome">{{ t("ideas.outcome") }}</dt>
+        <dd>
+{% if idea.outcome.ref.known %}
+          <a class="idea-node-link" href="{{ idea.outcome.ref.url }}" title="{{ idea.outcome.ref.id }} — {{ idea.outcome.ref.title }}"><span class="mono">{{ idea.outcome.ref.id }}</span></a>
+{% else %}
+          <span class="idea-node-missing"><span class="mono">{{ idea.outcome.ref.id }}</span> <span class="muted" data-i18n="ideas.unknown_node">{{ t("ideas.unknown_node") }}</span></span>
+{% endif %}
+{% if idea.outcome.note %}
+          <span class="idea-outcome-note">{{ idea.outcome.note }}</span>
+{% endif %}
+        </dd>
+{% endif %}
+      </dl>
+      <p class="idea-dates muted">
+{% if idea.created %}
+        <span data-i18n="ideas.created">{{ t("ideas.created") }}</span> <span class="mono">{{ idea.created }}</span>
+{% endif %}
+{% if idea.last_updated %}
+        <span data-i18n="ideas.updated">{{ t("ideas.updated") }}</span> <span class="mono">{{ idea.last_updated }}</span>
+{% endif %}
+      </p>
+    </li>
+{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endblock %}

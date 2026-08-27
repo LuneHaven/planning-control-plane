@@ -60,11 +60,14 @@ from planning_control_plane.graph import PlanningGraph
 from planning_control_plane.model import (
     NODE_ID_RE,
     Decision,
+    Idea,
+    IdeaStatus,
     NodeStatus,
     PCPError,
     Project,
     TrackStatus,
     NodeType,
+    idea_sort_key,
 )
 
 __all__ = ["build_site", "check_build"]
@@ -257,6 +260,78 @@ def _source_views(project: Project, paths: list[str]) -> list[dict]:
     ]
 
 
+def _idea_source_views(sources: list) -> list[dict]:
+    """One justification slot as template rows (spec §52.2).
+
+    ``ref`` renders as text, never as a link: it points into the *source*
+    repository, which the generated site does not contain, and PCP links
+    only pages it generated. ``note`` is the only channel for the world
+    outside the repository (IDEA-D18) and is author text in every locale.
+    """
+    return [{"ref": entry.ref or "", "note": entry.note or ""} for entry in sources]
+
+
+def _idea_view(ctx: _Ctx, idea: Idea) -> dict:
+    """One idea as the template sees it (spec IDEA-D54).
+
+    Node references go through :func:`_node_ref`, so a dangling
+    ``relates_to`` or ``outcome.node`` renders as plain text with
+    ``known=False`` — the generator never fabricates a link to a page it
+    did not write. The stored status string is projected defensively:
+    values outside :class:`IdeaStatus` keep their text and carry no
+    runtime translation key.
+    """
+    return {
+        "id": idea.id,
+        "title": idea.title,
+        "detail": idea.detail,
+        "status": {
+            "raw": idea.status,
+            "label": i18n.idea_status_label(ctx.locale, idea.status),
+            "i18n": i18n.idea_status_key(idea.status),
+        },
+        "relates_to": _sorted_refs(ctx, list(dict.fromkeys(idea.relates_to))),
+        "outcome": (
+            {"ref": _node_ref(ctx, idea.outcome.node), "note": idea.outcome.note}
+            if idea.outcome is not None
+            else None
+        ),
+        "benchmark_sources": _idea_source_views(idea.benchmark_sources),
+        "methodology_sources": _idea_source_views(idea.methodology_sources),
+        "created": idea.created,
+        "last_updated": idea.last_updated,
+    }
+
+
+def _ideas_context(ctx: _Ctx) -> dict:
+    """Ideas page context: status groups in the fixed order (spec §61).
+
+    Statuses outside :class:`IdeaStatus` have no group of their own — the
+    page projects the controlled enum, and ``pcp validate`` is where an
+    invalid status gets reported (spec §12: the site stores and shows, it
+    never judges). Groups with no members are dropped rather than rendered
+    empty.
+    """
+    grouped: dict[str, list] = {member.value: [] for member in IdeaStatus}
+    for idea in sorted(ctx.project.ideas.values(), key=idea_sort_key):
+        if idea.status in grouped:
+            grouped[idea.status].append(_idea_view(ctx, idea))
+    groups = [
+        {
+            "status": {
+                "raw": member.value,
+                "label": i18n.idea_status_label(ctx.locale, member.value),
+                "i18n": i18n.idea_status_key(member.value),
+            },
+            "count": len(grouped[member.value]),
+            "ideas": grouped[member.value],
+        }
+        for member in IdeaStatus
+        if grouped[member.value]
+    ]
+    return {**_base_context(ctx, None, is_ideas_page=True), "groups": groups}
+
+
 def _track_display(value: str) -> str:
     """Terminal-style track status (``NOT_APPLICABLE`` renders as ``N/A``).
 
@@ -372,19 +447,23 @@ def _planning_tree(ctx: _Ctx, focus_id: str | None, current_page_id: str | None)
 # --------------------------------------------------------------------------
 
 
-def _base_context(ctx: _Ctx, current_page_id: str | None) -> dict:
+def _base_context(ctx: _Ctx, current_page_id: str | None, is_ideas_page: bool = False) -> dict:
     """Context every page shares: project name, locale, relative link bases
     and the sidebar planning tree (with the current focus highlighted).
 
     The sidebar owns the full planning topology; no other region of the
-    site renders the whole tree again (UI-D3).
+    site renders the whole tree again (UI-D3). ``has_ideas`` gates the idea
+    layer's sidebar entry: a project with no ideas renders no entry at all
+    (IDEA-D63), which is what keeps every existing page unchanged.
     """
     project = ctx.project
     return {
         "project_name": project.config.name or project.config.id,
         # Lets the topbar mark its own entry as the current page instead of
         # hiding it, so the global navigation never shifts position.
-        "is_dashboard": current_page_id is None,
+        "is_dashboard": current_page_id is None and not is_ideas_page,
+        "is_ideas": is_ideas_page,
+        "has_ideas": bool(project.ideas),
         "locale": ctx.locale,
         "html_lang": i18n.html_lang(ctx.locale),
         "t": i18n.translator(ctx.locale),
@@ -393,6 +472,7 @@ def _base_context(ctx: _Ctx, current_page_id: str | None) -> dict:
         "tree": _planning_tree(ctx, project.config.current_focus, current_page_id),
         "base": {
             "index": f"{ctx.prefix}index.html",
+            "ideas": f"{ctx.prefix}ideas.html",
             "nodes": f"{ctx.prefix}nodes/",
             "assets": f"{ctx.prefix}assets/",
         },
@@ -672,6 +752,10 @@ def build_site(project: Project, out_dir: Path) -> list[Path]:
     templates) and one ``nodes/<safe-id>.html`` per node. Returns the
     written paths, sorted.
 
+    Projects that carry ideas also get a single ``ideas.html`` at the site
+    root; projects without ideas get no such page and no navigation entry
+    for it (IDEA-D63).
+
     The generated language comes from ``ui.locale`` in the project config
     (already resolved to a supported locale by the loader), so the same
     planning source plus the same config always yields the same bytes.
@@ -707,6 +791,15 @@ def build_site(project: Project, out_dir: Path) -> list[Path]:
     written.append(
         _write_text(out_dir / "index.html", env.get_template("index.html").render(**_index_context(index_ctx)))
     )
+
+    # Idea layer projection (spec §61). Conditional by IDEA-D63: no ideas
+    # means no page and no sidebar entry, so a project that never adopted
+    # the idea layer keeps exactly the site it had before.
+    if project.ideas:
+        ideas_ctx = _Ctx(project=project, graph=graph, safe=safe, locale=locale, prefix="")
+        written.append(
+            _write_text(out_dir / "ideas.html", env.get_template("ideas.html").render(**_ideas_context(ideas_ctx)))
+        )
 
     node_template = env.get_template("node.html")
     for node_id in project.sorted_node_ids():
