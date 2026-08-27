@@ -125,6 +125,15 @@ def _oneline(text: str) -> str:
     return " ".join(text.split())
 
 
+def _idea_hint(project: Project, node_id: str) -> str:
+    """IDEA-D52 suffix for unknown-node errors: an IDEA id is a natural
+    mistake, and the thing the user needs to hear is that capsules and
+    focus never carry ideas — 'pcp ideas' owns them."""
+    if node_id in project.ideas:
+        return f"; '{node_id}' is an IDEA record, see 'pcp ideas'"
+    return ""
+
+
 def _load_project(args: argparse.Namespace) -> Project | None:
     """Load the planning project for *args*.
 
@@ -343,7 +352,7 @@ def cmd_context(args: argparse.Namespace) -> int:
         )
         return EXIT_FAILURE
     if node_id not in project.nodes:
-        print(f"error: unknown node '{node_id}'", file=sys.stderr)
+        print(f"error: unknown node '{node_id}'{_idea_hint(project, node_id)}", file=sys.stderr)
         return EXIT_FAILURE
 
     try:
@@ -377,7 +386,7 @@ def cmd_focus(args: argparse.Namespace) -> int:
     node_id = args.node_id
     node = project.nodes.get(node_id)
     if node is None:
-        print(f"error: unknown node '{node_id}'", file=sys.stderr)
+        print(f"error: unknown node '{node_id}'{_idea_hint(project, node_id)}", file=sys.stderr)
         return EXIT_FAILURE
 
     config_path = project.planning_dir() / loader.PROJECT_FILE
@@ -547,16 +556,25 @@ def cmd_build(args: argparse.Namespace) -> int:
         return EXIT_USAGE
 
     issues = validator.validate_project(project)
-    errors = [issue for issue in issues if issue.severity == Severity.ERROR]
-    warnings = [issue for issue in issues if issue.severity != Severity.ERROR]
-    if errors:
+
+    def _blocks_build(issue) -> bool:
+        # Idea-layer ERRORs do not gate the build (spec IDEA-D59):
+        # uncommitted thoughts must not block the plan projection. Layer
+        # membership is decided by rule name — the closed set in
+        # model.IDEA_RULE_NAMES — never by node_id (file-level issues
+        # have none, and idea/node ids may collide, spec IDEA-D15).
+        return issue.severity == Severity.ERROR and issue.rule not in IDEA_RULE_NAMES
+
+    blocking = [issue for issue in issues if _blocks_build(issue)]
+    if blocking:
         for issue in issues:
             print(issue.format())
         print()
         print("fix validation errors before build")
         return EXIT_FAILURE
-    for issue in warnings:  # warnings are informational; the build continues
-        print(issue.format())
+    for issue in issues:
+        if not _blocks_build(issue):  # warnings + idea-layer errors: informational; the build continues
+            print(issue.format())
 
     if args.check:
         ok, messages = generator.check_build(project, project.output_dir())

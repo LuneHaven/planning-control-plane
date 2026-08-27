@@ -625,3 +625,61 @@ def test_cli_ideas_for_unknown_node(make_project, tmp_path, cli):
     code, out, err = cli("-p", str(root), "ideas", "--for", "NOPE")
     assert code == 1
     assert "unknown node 'NOPE'" in err
+
+
+def test_cli_context_idea_id_hint(make_project, tmp_path, cli):
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    raw = {"ideas/IDEA-0007.yaml": "id: IDEA-0007\ntitle: T\nstatus: OPEN\n"}
+    _project, root = make_project(tmp_path, node_dicts=nodes, raw_files=raw)
+    code, out, err = cli("-p", str(root), "context", "IDEA-0007")
+    assert code == 1
+    assert "unknown node 'IDEA-0007'" in err
+    assert "pcp ideas" in err
+
+
+def test_cli_focus_idea_id_hint(make_project, tmp_path, cli):
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    raw = {"ideas/IDEA-0007.yaml": "id: IDEA-0007\ntitle: T\nstatus: OPEN\n"}
+    _project, root = make_project(tmp_path, node_dicts=nodes, raw_files=raw)
+    code, out, err = cli("-p", str(root), "focus", "IDEA-0007")
+    assert code == 1
+    assert "pcp ideas" in err
+
+
+def test_cli_build_succeeds_with_idea_layer_errors(make_project, tmp_path, cli):
+    """IDEA-D59: an idea-layer ERROR must not block the plan projection."""
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    raw = {"ideas/IDEA-BAD.yaml": "id: IDEA-BAD\ntitle: T\nstatus: PROMOTED\n"}  # promoted-without-outcome ERROR
+    _project, root = make_project(tmp_path, node_dicts=nodes, raw_files=raw)
+    code, out, err = cli("-p", str(root), "build")
+    assert code == 0
+    assert "promoted-without-outcome" in out  # printed, informational
+    assert "Built" in out                     # build proceeded
+
+
+def test_cli_build_still_blocked_by_node_layer_errors(make_project, tmp_path, cli):
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE", "depends_on": ["MISSING"]}]
+    raw = {"ideas/IDEA-BAD.yaml": "id: IDEA-BAD\ntitle: T\nstatus: PROMOTED\n"}
+    _project, root = make_project(tmp_path, node_dicts=nodes, raw_files=raw)
+    code, out, err = cli("-p", str(root), "build")
+    assert code == 1
+    assert "fix validation errors before build" in out
+
+
+def test_cli_plan_commands_survive_broken_idea_file(make_project, tmp_path, cli):
+    """Spec §62.1 phase-1 acceptance: with a broken idea YAML present,
+    status / context / build must all still succeed (invariant §59.6)."""
+    config = {"project": {"id": "t", "name": "T"}, "planning": {"current_focus": "P1"}}
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    raw = {"ideas/IDEA-BROKEN.yaml": "id: [unclosed\n"}
+    _project, root = make_project(tmp_path, config_dict=config, node_dicts=nodes, raw_files=raw)
+
+    code, out, err = cli("-p", str(root), "status")
+    assert code == 0
+
+    code, out, err = cli("-p", str(root), "context", "P1")
+    assert code == 0
+    assert "PCP CONTEXT CAPSULE" in out  # capsule unaffected by idea garbage
+
+    code, out, err = cli("-p", str(root), "build")
+    assert code == 0
