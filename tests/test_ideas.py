@@ -471,3 +471,61 @@ def test_cli_ideas_status_filter_no_match_exit_zero(make_project, tmp_path, cli)
     code, out, err = cli("-p", str(root), "ideas", "--status", "DISCARDED")
     assert (code, err) == (0, "")
     assert out.strip() == "no ideas match the requested status filter"
+
+
+def test_cli_ideas_notes_hidden_invalid_status(make_project, tmp_path, cli):
+    raw = {
+        "ideas/A.yaml": "id: A\ntitle: T\nstatus: OPEN\n",
+        "ideas/B.yaml": "id: B\ntitle: T\nstatus: PAUSED\n",  # invalid: unlistable
+    }
+    _project, root = make_project(tmp_path, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas")
+    assert code == 0
+    assert "IDEA-B" not in out
+    assert "note: 1 idea record(s) not shown" in out
+
+
+def test_cli_ideas_notes_broken_idea_file_in_empty_state(make_project, tmp_path, cli):
+    _project, root = make_project(tmp_path, raw_files={"ideas/BAD.yaml": "id: [unclosed\n"})
+    code, out, err = cli("-p", str(root), "ideas")
+    assert (code, err) == (0, "")
+    assert out.splitlines()[0] == "no ideas yet; add .planning/ideas/<id>.yaml"
+    assert "note: 1 idea record(s) not shown" in out
+
+
+def test_cli_ideas_no_note_for_valid_status_filtering(make_project, tmp_path, cli):
+    raw = {
+        "ideas/A.yaml": "id: A\ntitle: T\nstatus: OPEN\n",
+        "ideas/D.yaml": "id: D\ntitle: T\nstatus: DISCARDED\n",
+    }
+    _project, root = make_project(tmp_path, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--status", "OPEN")
+    assert code == 0
+    assert "note:" not in out
+
+
+def test_cli_ideas_full_group_order_and_discarded(make_project, tmp_path, cli):
+    raw = {
+        "ideas/O.yaml": "id: O\ntitle: T\nstatus: OPEN\n",
+        "ideas/K.yaml": "id: K\ntitle: T\nstatus: PARKED\n",
+        "ideas/M.yaml": "id: M\ntitle: T\nstatus: PROMOTED\noutcome:\n  node: P1\n",
+        "ideas/X.yaml": "id: X\ntitle: T\nstatus: DISCARDED\n",
+    }
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    _project, root = make_project(tmp_path, node_dicts=nodes, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas")
+    assert code == 0
+    headers = [l for l in out.splitlines() if l.startswith("==")]
+    assert headers == ["== OPEN (1) ==", "== PARKED (1) ==", "== PROMOTED (1) ==", "== DISCARDED (1) =="]
+
+
+def test_cli_ideas_multiline_title_collapsed(make_project, tmp_path, cli):
+    raw = {"ideas/A.yaml": "id: A\ntitle: |\n  first line\n  second line\nstatus: OPEN\n"}
+    _project, root = make_project(tmp_path, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas")
+    assert code == 0
+    lines = out.splitlines()
+    # _oneline joins the block-scalar lines with single spaces: the whole
+    # multi-line title lands on exactly one listing line.
+    assert len(lines) == 2  # group header + one idea line
+    assert "first line second line" in lines[1]

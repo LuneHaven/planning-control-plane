@@ -5,8 +5,8 @@ the frozen loader API, delegates to validator / context / generator, and
 formats plain terminal output (no colors).
 
 Implemented commands (spec §4): ``init`` (§5), ``validate`` (§16/§17),
-``status`` (§18), ``context`` (§20/§21), ``focus`` (§19) and ``build`` /
-``build --check`` (§22/§23).
+``status`` (§18), ``context`` (§20/§21), ``focus`` (§19), ``ideas``
+(§60) and ``build`` / ``build --check`` (§22/§23).
 
 Exit codes:
 
@@ -523,6 +523,20 @@ def cmd_ideas(args: argparse.Namespace) -> int:
             print("no ideas match the requested status filter")
         else:
             print("no ideas yet; add .planning/ideas/<id>.yaml")
+
+    # Records hidden from the listing must never vanish silently: unreadable
+    # files surface as idea-layer load issues, ideas with a validator-invalid
+    # status fall out of the fixed group order. Ordinary status filtering
+    # (valid statuses) never counts — the note is about data health, not
+    # display choice.
+    hidden = sum(1 for issue in project.load_issues if issue.rule in IDEA_RULE_NAMES) + sum(
+        1 for idea in project.ideas.values() if idea.status not in _IDEA_STATUS_ORDER
+    )
+    if hidden:
+        print(
+            f"note: {hidden} idea record(s) not shown (invalid status or "
+            "unreadable file); run 'pcp validate'"
+        )
     return EXIT_OK
 
 
