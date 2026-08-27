@@ -17,6 +17,11 @@ Scope, deliberately narrow:
   the data, from the OS locale or from environment variables, so the same
   planning source plus the same config always renders byte-identical output.
 
+Since the idea layer (spec §61) the same discipline covers ideas: their
+statuses live in the ``idea_status.*`` namespace, and idea ids, titles,
+detail text and justification notes are author data that no locale
+touches.
+
 Only two locales exist: ``en`` (default) and ``zh-CN``. There is no gettext,
 no Babel, no external locale files and no third-party i18n framework — just
 the two dictionaries below, which are required to carry exactly the same key
@@ -46,6 +51,8 @@ __all__ = [
     "SUPPORTED_LOCALES",
     "TRANSLATIONS",
     "html_lang",
+    "idea_status_key",
+    "idea_status_label",
     "is_supported",
     "resolve_locale",
     "runtime_payload",
@@ -227,6 +234,30 @@ _EN: dict[str, str] = {
     "track.IN_PROGRESS": "IN_PROGRESS",
     "track.DONE": "DONE",
     "track.NOT_APPLICABLE": "N/A",
+    # -------------------------------------------------------------- ideas
+    # Idea layer (spec §61). Uncommitted thinking: presentation only, and a
+    # namespace of its own — `idea_status.*` never shares a key with the
+    # node-side `status.*` (IDEA-D14).
+    "ideas.nav": "Ideas",
+    "ideas.nav_label": "Idea layer (sidebar)",
+    "ideas.title": "Ideas",
+    "ideas.subtitle": (
+        "Uncommitted thinking. An idea reaches the planning graph only by graduating."
+    ),
+    "ideas.group_count": "{n}",
+    "ideas.detail": "Detail",
+    "ideas.benchmark": "Benchmark sources",
+    "ideas.methodology": "Methodology sources",
+    "ideas.relates_to": "Born from",
+    "ideas.outcome": "Graduated to",
+    "ideas.created": "Created",
+    "ideas.updated": "Updated",
+    "ideas.no_sources": "None recorded",
+    "ideas.unknown_node": "unknown node",
+    "idea_status.OPEN": "OPEN",
+    "idea_status.PARKED": "PARKED",
+    "idea_status.PROMOTED": "PROMOTED",
+    "idea_status.DISCARDED": "DISCARDED",
 }
 
 
@@ -357,6 +388,25 @@ _ZH_CN: dict[str, str] = {
     "track.IN_PROGRESS": "进行中",
     "track.DONE": "已完成",
     "track.NOT_APPLICABLE": "不适用",
+    # -------------------------------------------------------------- ideas
+    "ideas.nav": "想法",
+    "ideas.nav_label": "想法层（侧栏）",
+    "ideas.title": "想法",
+    "ideas.subtitle": "尚未承诺的思考。想法只能通过毕业进入规划图。",
+    "ideas.group_count": "{n}",
+    "ideas.detail": "原文",
+    "ideas.benchmark": "对标论据",
+    "ideas.methodology": "方法论论据",
+    "ideas.relates_to": "诞生上下文",
+    "ideas.outcome": "毕业去向",
+    "ideas.created": "创建",
+    "ideas.updated": "更新",
+    "ideas.no_sources": "暂无",
+    "ideas.unknown_node": "未知节点",
+    "idea_status.OPEN": "开放",
+    "idea_status.PARKED": "搁置",
+    "idea_status.PROMOTED": "已毕业",
+    "idea_status.DISCARDED": "已否决",
 }
 
 
@@ -429,6 +479,28 @@ def status_key(status: str) -> str | None:
     translation for (LANG-D3).
     """
     key = f"status.{status}"
+    return key if key in _EN else None
+
+
+def idea_status_label(locale: str, status: str) -> str:
+    """Localized label for an idea status (spec §53.1, IDEA-D56).
+
+    Values outside :class:`~planning_control_plane.model.IdeaStatus` are
+    returned unchanged — the generator projects idea data defensively and
+    leaves the verdict to ``pcp validate``, exactly as it does for nodes.
+    """
+    key = f"idea_status.{status}"
+    return translator(locale)(key) if key in _EN else status
+
+
+def idea_status_key(status: str) -> str | None:
+    """Translation key that re-labels an idea status at runtime, or ``None``.
+
+    A separate namespace from :func:`status_key`: the two enums never
+    interoperate (IDEA-D14), so a shared key would let a node status
+    re-label an idea badge in the browser.
+    """
+    key = f"idea_status.{status}"
     return key if key in _EN else None
 
 
