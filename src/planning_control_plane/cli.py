@@ -528,25 +528,35 @@ def cmd_ideas(args: argparse.Namespace) -> int:
             print(_idea_line(idea, via))
         shown += len(entries)
 
+    # Records that this listing would have shown but cannot: files that never
+    # parsed, entries dropped as unusable or duplicate, and loaded ideas whose
+    # status falls outside the fixed group order. Ordinary status filtering
+    # never counts — that is a display choice, not a data problem. Neither
+    # does a record outside the --for scope: it was never part of this
+    # listing, so reporting it here sends the reader after a phantom. Under
+    # --for, file-level failures (unreadable/duplicate/unusable) carry no
+    # relates_to to test against the scope, so they cannot be attributed to
+    # this listing and are reported by the global listing / pcp validate only;
+    # a loaded idea CAN be tested, and only counts when it hits the scope.
+    hidden = 0
+    if args.node is None:
+        hidden += sum(1 for i in project.load_issues if i.rule in _HIDDEN_IDEA_RULES)
+        hidden += sum(1 for idea in project.ideas.values() if idea.status not in _IDEA_STATUS_ORDER)
+    else:
+        hidden += sum(1 for idea, _via in selected if idea.status not in _IDEA_STATUS_ORDER)
+
     if shown == 0:
-        if args.node is not None:
+        if args.node is not None and any(groups[status] for status in _IDEA_STATUS_ORDER):
+            print(f"no ideas match the requested status filter for node '{args.node}'")
+        elif args.node is not None:
             print(f"no matching ideas for node '{args.node}'" + (" (subtree)" if args.subtree else ""))
         elif project.ideas:
             print("no ideas match the requested status filter")
+        elif hidden:
+            print("idea files exist but could not be loaded; run 'pcp validate'")
         else:
             print("no ideas yet; add .planning/ideas/<id>.yaml")
 
-    # Records hidden from the listing must never vanish silently: unreadable,
-    # unusable or duplicate entries surface as idea-layer load issues whose
-    # records never reach the listing, and ideas with a validator-invalid
-    # status fall out of the fixed group order. Issues that leave the record
-    # listable (missing title, bad field/source/outcome values) do NOT count —
-    # the note only reports records genuinely absent. Ordinary status
-    # filtering (valid statuses) never counts either — the note is about data
-    # health, not display choice.
-    hidden = sum(1 for i in project.load_issues if i.rule in _HIDDEN_IDEA_RULES) + sum(
-        1 for idea in project.ideas.values() if idea.status not in _IDEA_STATUS_ORDER
-    )
     if hidden:
         print(
             f"note: {hidden} idea record(s) not shown (broken or duplicate "

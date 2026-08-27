@@ -500,7 +500,9 @@ def test_cli_ideas_notes_broken_idea_file_in_empty_state(make_project, tmp_path,
     _project, root = make_project(tmp_path, raw_files={"ideas/BAD.yaml": "id: [unclosed\n"})
     code, out, err = cli("-p", str(root), "ideas")
     assert (code, err) == (0, "")
-    assert out.splitlines()[0] == "no ideas yet; add .planning/ideas/<id>.yaml"
+    # Phase-2 Task 1: files exist but failed to load — "no ideas yet" would
+    # tell the reader to create a file they already created.
+    assert out.splitlines()[0] == "idea files exist but could not be loaded; run 'pcp validate'"
     assert "note: 1 idea record(s) not shown" in out
 
 
@@ -725,3 +727,69 @@ def test_cli_plan_commands_survive_broken_idea_file(make_project, tmp_path, cli)
 
     code, out, err = cli("-p", str(root), "build")
     assert code == 0
+
+
+# --------------------------------------------- phase-1 review follow-ups
+
+
+def _three_nodes():
+    return [
+        {"id": "P1", "title": "P1", "type": "PROGRAM", "status": "IMPLEMENTING"},
+        {"id": "P2", "title": "P2", "type": "PHASE", "status": "READY", "parent": "P1"},
+        {"id": "P3", "title": "P3", "type": "PHASE", "status": "READY", "parent": "P1"},
+    ]
+
+
+def test_cli_ideas_hidden_note_is_scoped_to_the_query(make_project, tmp_path, cli):
+    """The 'not shown' note must describe THIS listing. A broken record that
+    relates to nothing can never appear under --for, so counting it there
+    tells the reader to go fix something that was never being shown."""
+    raw = {
+        "ideas/IDEA-OK.yaml": "id: IDEA-OK\ntitle: ok\nstatus: OPEN\nrelates_to: [P2]\n",
+        "ideas/IDEA-BADSTATUS.yaml": "id: IDEA-BADSTATUS\ntitle: bad\nstatus: WISHLIST\n",
+        "ideas/broken.yaml": "id: [unclosed\n",
+    }
+    _project, root = make_project(tmp_path, node_dicts=_three_nodes(), raw_files=raw)
+
+    code, out, _err = cli("-p", str(root), "ideas")
+    assert code == 0
+    assert "2 idea record(s) not shown" in out  # global listing: both are hidden
+
+    code, out, _err = cli("-p", str(root), "ideas", "--for", "P2")
+    assert code == 0
+    assert "IDEA-OK" in out
+    assert "not shown" not in out  # neither hidden record relates to P2
+
+
+def test_cli_ideas_status_filter_empty_says_so_even_under_for(make_project, tmp_path, cli):
+    """Blaming the node when the status filter is what emptied the result
+    sends the reader looking for a relates_to bug that isn't there."""
+    raw = {"ideas/IDEA-OK.yaml": "id: IDEA-OK\ntitle: ok\nstatus: OPEN\nrelates_to: [P2]\n"}
+    _project, root = make_project(tmp_path, node_dicts=_three_nodes(), raw_files=raw)
+
+    code, out, _err = cli("-p", str(root), "ideas", "--for", "P2", "--status", "DISCARDED")
+    assert code == 0
+    assert "status filter" in out
+    assert "no matching ideas for node 'P2'" not in out
+
+
+def test_cli_ideas_for_no_match_still_blames_the_node(make_project, tmp_path, cli):
+    """The node-scoped wording stays when the scope really is what is empty."""
+    raw = {"ideas/IDEA-OK.yaml": "id: IDEA-OK\ntitle: ok\nstatus: OPEN\nrelates_to: [P2]\n"}
+    _project, root = make_project(tmp_path, node_dicts=_three_nodes(), raw_files=raw)
+
+    code, out, _err = cli("-p", str(root), "ideas", "--for", "P3")
+    assert code == 0
+    assert "no matching ideas for node 'P3'" in out
+
+
+def test_cli_ideas_all_files_broken_does_not_claim_there_are_none(make_project, tmp_path, cli):
+    """'no ideas yet' tells the reader to create a file they already created."""
+    raw = {"ideas/broken.yaml": "id: [unclosed\n"}
+    _project, root = make_project(tmp_path, node_dicts=_three_nodes(), raw_files=raw)
+
+    code, out, _err = cli("-p", str(root), "ideas")
+    assert code == 0
+    assert "no ideas yet" not in out
+    assert "could not be loaded" in out
+    assert "1 idea record(s) not shown" in out
