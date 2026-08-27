@@ -26,7 +26,6 @@ def test_idea_defaults():
 
 
 def test_idea_source_and_default_outcome_shapes():
-    entry = IdeaSource(ref="docs/a.md", note="n")
     assert IdeaSource() == IdeaSource(ref=None, note=None)
     assert IdeaOutcome(node="P2", note="") == IdeaOutcome(node="P2")
 

@@ -2,10 +2,13 @@
 
 This module is intentionally free of I/O. It defines:
 
-* the controlled enums (node type, node status, per-track status),
+* the controlled enums (node type, node status, per-track status, idea status),
 * the in-memory representation of a planning project
-  (:class:`Node`, :class:`Decision`, :class:`ProjectConfig`, :class:`Project`),
-* the shared :class:`ValidationIssue` type used by loader and validator.
+  (:class:`Node`, :class:`Decision`, :class:`IdeaSource`, :class:`IdeaOutcome`,
+  :class:`Idea`, :class:`ProjectConfig`, :class:`Project`),
+* the shared :class:`ValidationIssue` type used by loader and validator,
+  together with the idea-layer rule-name closed set (:data:`IDEA_RULE_NAMES`)
+  and its issue builder (:func:`idea_issue`).
 
 Loading lives in :mod:`planning_control_plane.loader`, graph operations in
 :mod:`planning_control_plane.graph`, rules in
