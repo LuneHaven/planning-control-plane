@@ -71,7 +71,23 @@ def _config(locale: str | None) -> dict:
 def _build(make_project, tmp_path, locale, name):
     room = tmp_path / name
     room.mkdir()
-    project, root = make_project(room, config_dict=_config(locale), node_dicts=_nodes())
+    project, root = make_project(
+        room,
+        config_dict=_config(locale),
+        node_dicts=_nodes(),
+        # The ideas page must pass the same LANG contracts as every other
+        # page, so the fixture carries one idea (spec §61 / IDEA-D56).
+        raw_files={
+            "ideas/IDEA-L1.yaml": (
+                "id: IDEA-L1\n"
+                "title: Lang fixture idea 语言夹具\n"
+                "status: OPEN\n"
+                "detail: Author text that no locale may translate.\n"
+                "relates_to: [LEAF]\n"
+                "last_updated: 2026-08-28\n"
+            )
+        },
+    )
     dist = root / ".planning" / "dist"
     generator.build_site(project, dist)
     return dist
@@ -107,7 +123,7 @@ def _payload(page):
     return json.loads(match.group(1))
 
 
-ALL_PAGES = ("index.html", "nodes/LEAF.html")
+ALL_PAGES = ("index.html", "ideas.html", "nodes/LEAF.html")
 
 
 # ------------------------------------------------- LANG-AC-01/02: defaults

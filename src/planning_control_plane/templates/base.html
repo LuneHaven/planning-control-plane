@@ -79,6 +79,16 @@
       <p class="sidebar-empty" data-i18n="site.no_nodes">{{ t("site.no_nodes") }}</p>
 {% endif %}
     </nav>
+{% if has_ideas %}
+    {# Idea layer entry (spec IDEA-D54): a section of its own, outside the
+       planning tree — the tree is the planning graph and stays that way
+       (invariant 3). Rendered only when the project actually has ideas
+       (IDEA-D63), which is what keeps every existing project's pages
+       unchanged. No count badge in the MVP. #}
+    <nav class="sidebar-extra" aria-label="{{ t("ideas.nav_label") }}" data-i18n-attr="aria-label=ideas.nav_label">
+      <a class="sidebar-extra-link" href="{{ base.ideas }}"{% if is_ideas %} aria-current="page"{% endif %} data-i18n="ideas.nav">{{ t("ideas.nav") }}</a>
+    </nav>
+{% endif %}
   </aside>
   <div class="frame">
     <header class="topbar">

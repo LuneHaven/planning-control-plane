@@ -338,3 +338,126 @@ def test_ideas_page_dedupes_repeated_relates_to(make_project, tmp_path):
     # `idea-node-link` appears only in the ideas content (the sidebar tree
     # uses its own link classes), so a page-wide findall pins the card.
     assert re.findall(r'class="idea-node-link" href="([^"]+)"', page) == ["nodes/P2.html"]
+
+
+# ------------------------------------------------- IDEA-D54 sidebar entry
+
+
+def test_sidebar_entry_appears_on_every_page_of_an_ideas_project(ideas_dist):
+    for name in ("index.html", "ideas.html", "nodes/P1.html"):
+        page = _page(ideas_dist, name)
+        assert 'class="sidebar-extra"' in page, name
+        assert 'data-i18n="ideas.nav"' in page, name
+
+
+def test_sidebar_entry_sits_outside_the_planning_tree(ideas_dist):
+    """IDEA-D54: a separate section, not a tree node — the sidebar tree
+    stays the planning graph and nothing else (invariant 3)."""
+    page = _page(ideas_dist, "index.html")
+    tree = page[page.index('id="planning-tree"'):page.index("</ul>", page.index('id="planning-tree"'))]
+    assert "sidebar-extra" not in tree
+    assert page.index('id="planning-tree"') < page.index('class="sidebar-extra"')
+
+
+def test_sidebar_entry_carries_no_count_badge(ideas_dist):
+    """IDEA-D54: MVP has no count badge on the entry."""
+    page = _page(ideas_dist, "index.html")
+    entry = page[page.index('class="sidebar-extra"'):]
+    entry = entry[: entry.index("</nav>")]
+    # Tags are stripped first: the raw markup must keep its house-convention
+    # i18n hooks, and the attribute *name* ``data-i18n`` itself carries the
+    # digits "18" — a badge would be visible text, so that is what is checked.
+    # The slice starts mid-tag (at the nav's class attribute), so the nav's
+    # own opening tag is cut at its closing bracket first.
+    inner = entry[entry.index(">") + 1:]
+    visible = re.sub(r"<[^>]+>", "", inner)
+    assert not re.search(r"\d", visible)
+
+
+def test_ideas_page_marks_its_own_sidebar_entry_as_current(ideas_dist):
+    page = _page(ideas_dist, "ideas.html")
+    assert re.search(r'class="sidebar-extra-link"[^>]*aria-current="page"', page)
+    assert 'href="index.html" aria-current="page"' not in page  # topbar Overview is not current
+
+
+# ------------------------------ invariant §59.4 phase 2: no-ideas projects
+
+
+@pytest.fixture
+def plain_dist(demo_root, tmp_path):
+    """The shipped demo project — seven nodes, no ideas/ directory."""
+    from planning_control_plane.loader import load_project
+
+    project = load_project(demo_root)
+    dist = tmp_path / "plain-dist"
+    generator.build_site(project, dist)
+    return dist
+
+
+def test_no_ideas_project_keeps_the_exact_phase1_file_list(plain_dist):
+    """'No new page' in its literal, checkable form."""
+    files = sorted(p.relative_to(plain_dist).as_posix() for p in plain_dist.rglob("*") if p.is_file())
+    assert files == [
+        "assets/app.js",
+        "assets/style.css",
+        "index.html",
+        "nodes/P1.html",
+        "nodes/P2-A.html",
+        "nodes/P2-A1.html",
+        "nodes/P2-A2.html",
+        "nodes/P2-A3.html",
+        "nodes/P2-A4.html",
+        "nodes/P2.html",
+    ]
+
+
+def test_no_ideas_pages_contain_no_idea_markup_outside_the_payload(plain_dist):
+    """'No new navigation entry, no new visible content' — the i18n payload
+    is the one allowed increment (invariant §59.4 phase 2), so it is cut out
+    before the check."""
+    for path in sorted(plain_dist.rglob("*.html")):
+        page = path.read_text(encoding="utf-8")
+        body = re.sub(
+            r'<script type="application/json" id="pcp-i18n">.*?</script>', "", page, flags=re.DOTALL
+        )
+        assert "idea" not in body.lower(), path.name
+
+
+def test_idea_css_cannot_restyle_pages_that_have_no_ideas(plain_dist):
+    """style.css is a shared asset, so the idea rules ship to every project.
+    They are inert there only if every selector is namespaced — this pins
+    that, so a future edit cannot silently restyle existing pages."""
+    css = (plain_dist / "assets" / "style.css").read_text(encoding="utf-8")
+    block = css[css.index("/* ----------------------------------------------------------- idea layer */"):]
+
+    # The selector regex below cannot see a single-line at-rule: `@` is not
+    # in its character class, so `@media print { body { … } }` is skipped
+    # whole. (A *multi-line* at-rule still trips the check, because its
+    # indented inner selectors do match.) The idea layer needs no at-rule
+    # at all — it styles with the existing tokens, which style.css already
+    # redefines under `@media (prefers-color-scheme: dark)`, so dark mode
+    # follows for free. Needing one here would mean someone introduced a
+    # hard-coded colour: exactly when a review should happen.
+    assert "@media" not in block and "@keyframes" not in block and "@import" not in block
+
+    selectors = re.findall(r"^([.\w\[\]\"=~^$*|:>+ ,-]+)\{", block, flags=re.MULTILINE)
+    for selector in selectors:
+        for part in selector.split(","):
+            part = part.strip()
+            assert part.startswith((".idea-", ".ideas-", ".sidebar-extra")), part
+
+
+def test_idea_css_is_append_only_over_phase1(plain_dist):
+    """The prefix check above proves new rules stay inert; this proves no
+    *existing* rule was rewritten. Together they are 'append only'.
+
+    The fixture is the phase-1 stylesheet captured byte-for-byte from
+    ``main``. It is not frozen forever: a later, unrelated UI change may
+    legitimately edit existing rules — but it must then update this fixture
+    **in its own commit**, which is precisely the visibility this gate
+    exists to force. What it must never do is drift silently as a
+    side effect of idea-layer work.
+    """
+    built = (plain_dist / "assets" / "style.css").read_bytes()
+    phase1 = (Path(__file__).parent / "fixtures" / "phase1_style.css").read_bytes()
+    assert built.startswith(phase1)
