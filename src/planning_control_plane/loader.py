@@ -296,6 +296,12 @@ def _as_idea_sources(value, idea_id: str, key: str, issues: list) -> list[IdeaSo
             continue
         ref = item.get("ref")
         note = item.get("note")
+        if ref is not None and not isinstance(ref, str):
+            issues.append(idea_issue(Severity.WARNING, "invalid-idea-source", f"'{key}' entry has a non-string 'ref'; ignored", idea_id, idea_id))
+            ref = None
+        if note is not None and not isinstance(note, str):
+            issues.append(idea_issue(Severity.WARNING, "invalid-idea-source", f"'{key}' entry has a non-string 'note'; ignored", idea_id, idea_id))
+            note = None
         ref_ok = isinstance(ref, str) and ref.strip()
         note_ok = isinstance(note, str) and note.strip()
         if not ref_ok and not note_ok:
@@ -318,6 +324,9 @@ def _as_idea_outcome(value, idea_id: str, issues: list) -> IdeaOutcome | None:
     if not isinstance(node, str) or not node.strip():
         issues.append(idea_issue(Severity.ERROR, "invalid-idea-outcome", "'outcome' needs a non-empty 'node'", idea_id, idea_id))
         return None
+    if note is not None and not isinstance(note, str):
+        issues.append(idea_issue(Severity.WARNING, "invalid-idea-outcome", "'outcome' has a non-string 'note'; ignored", idea_id, idea_id))
+        note = None
     return IdeaOutcome(node=node.strip(), note=note.strip() if isinstance(note, str) else "")
 
 

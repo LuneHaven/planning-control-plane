@@ -153,3 +153,30 @@ def test_parse_idea_relates_to_list_validation():
     idea = parse_idea({"id": "A", "title": "T", "relates_to": "P2"}, None, issues)
     assert idea.relates_to == []
     assert [i.rule for i in issues] == ["invalid-idea-field"]
+
+
+def test_parse_idea_non_string_ref_and_note_warn_and_are_dropped():
+    issues = []
+    idea = parse_idea(
+        {
+            "id": "IDEA-1",
+            "title": "T",
+            "benchmark_sources": [{"ref": "docs/a.md", "note": ["x"]}],
+            "methodology_sources": [{"ref": ["docs"], "note": "kept"}],
+        },
+        None,
+        issues,
+    )
+    assert idea.benchmark_sources == [IdeaSource(ref="docs/a.md", note=None)]
+    assert idea.methodology_sources == [IdeaSource(ref=None, note="kept")]
+    assert [(i.rule, i.severity) for i in issues] == [
+        ("invalid-idea-source", Severity.WARNING),
+        ("invalid-idea-source", Severity.WARNING),
+    ]
+
+
+def test_parse_idea_non_string_outcome_note_warns():
+    issues = []
+    idea = parse_idea({"id": "A", "title": "T", "outcome": {"node": "P2", "note": 7}}, None, issues)
+    assert idea.outcome == IdeaOutcome(node="P2", note="")
+    assert [(i.rule, i.severity) for i in issues] == [("invalid-idea-outcome", Severity.WARNING)]
