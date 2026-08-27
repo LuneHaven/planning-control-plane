@@ -646,6 +646,15 @@ def test_cli_focus_idea_id_hint(make_project, tmp_path, cli):
     assert "pcp ideas" in err
 
 
+def test_cli_unknown_node_error_has_no_idea_hint_for_plain_ids(make_project, tmp_path, cli):
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    raw = {"ideas/IDEA-0007.yaml": "id: IDEA-0007\ntitle: T\nstatus: OPEN\n"}
+    _project, root = make_project(tmp_path, node_dicts=nodes, raw_files=raw)
+    code, out, err = cli("-p", str(root), "context", "GHOST")
+    assert code == 1
+    assert err.strip() == "error: unknown node 'GHOST'"
+
+
 def test_cli_build_succeeds_with_idea_layer_errors(make_project, tmp_path, cli):
     """IDEA-D59: an idea-layer ERROR must not block the plan projection."""
     nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
