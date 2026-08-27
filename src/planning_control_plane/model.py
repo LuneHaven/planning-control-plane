@@ -99,6 +99,20 @@ class TrackStatus(str, Enum):
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
 
+class IdeaStatus(str, Enum):
+    """Controlled idea-layer lifecycle statuses (spec §53.1).
+
+    Ideas capture *uncommitted* thinking. PROMOTED is the only bridge into
+    the planning graph and requires an outcome (spec §55.5); the validator,
+    not the loader, checks membership.
+    """
+
+    OPEN = "OPEN"
+    PARKED = "PARKED"
+    PROMOTED = "PROMOTED"
+    DISCARDED = "DISCARDED"
+
+
 #: Accepted YAML spellings for :attr:`TrackStatus.NOT_APPLICABLE`.
 TRACK_STATUS_ALIASES = {
     "N/A": TrackStatus.NOT_APPLICABLE.value,
@@ -135,6 +149,49 @@ class ValidationIssue:
         return f"{self.severity.value:<7} {node:<12} {self.rule}: {self.message}"
 
 
+#: Rule names of the idea layer (spec §58.1). The closed set that tells
+#: idea-layer validation issues from node-layer ones: the ``pcp build``
+#: gate excludes exactly these rules (spec IDEA-D59), and every issue they
+#: produce carries the ``idea '<id>': `` message prefix (spec IDEA-D64).
+IDEA_RULE_NAMES = frozenset(
+    {
+        "invalid-idea-file",
+        "invalid-idea",
+        "missing-idea-title",
+        "invalid-idea-field",
+        "invalid-idea-source",
+        "invalid-idea-outcome",
+        "invalid-idea-id",
+        "duplicate-idea-id",
+        "ignored-idea-file",
+        "invalid-idea-status",
+        "missing-idea-relates-target",
+        "promoted-without-outcome",
+        "missing-outcome-target",
+        "outcome-without-promotion",
+        "idea-source-escapes-repo",
+        "idea-source-missing",
+        "idea-id-collides-with-node",
+        "idea-unknown-field",
+    }
+)
+
+
+def idea_issue(
+    severity: Severity, rule: str, detail: str, ident: str, node_id: str | None = None
+) -> ValidationIssue:
+    """Build one idea-layer issue with the mandatory message prefix.
+
+    ``ValidationIssue`` has a single id column shared by nodes and ideas,
+    so every idea-layer message starts with ``idea '<ident>': `` (spec
+    IDEA-D64). *ident* is the idea id, or the repository-relative path for
+    the file-level rules whose ``node_id`` stays ``None``.
+    """
+    return ValidationIssue(
+        severity=severity, rule=rule, message=f"idea '{ident}': {detail}", node_id=node_id
+    )
+
+
 @dataclass
 class Decision:
     """A decision attached to a node (frozen / open / blocking / deferred).
@@ -146,6 +203,54 @@ class Decision:
     id: str
     summary: str
     source: str | None = None
+
+
+@dataclass
+class IdeaSource:
+    """One justification entry on an idea (spec §52).
+
+    ``ref`` is an optional repository-relative path (validated like an
+    evidence source); ``note`` is free text and the only channel for the
+    world outside the repository (benchmark targets live there). At least
+    one of the two must be non-empty — enforced by the loader.
+    """
+
+    ref: str | None = None
+    note: str | None = None
+
+
+@dataclass
+class IdeaOutcome:
+    """Graduation target of a PROMOTED idea (spec §55.2)."""
+
+    node: str
+    note: str = ""
+
+
+@dataclass
+class Idea:
+    """One captured thought in the idea layer (spec §51).
+
+    Mirrors :class:`Node` in loading discipline (raw enum strings, unknown
+    field tracking, ``source_file``) but carries no planning semantics: no
+    tracks, no objective/scope, no decisions, no next_action — needing
+    those is the signal to graduate, not to grow the schema.
+    """
+
+    id: str
+    title: str
+    status: str = IdeaStatus.OPEN.value
+    detail: str = ""
+    relates_to: list[str] = field(default_factory=list)
+    benchmark_sources: list[IdeaSource] = field(default_factory=list)
+    methodology_sources: list[IdeaSource] = field(default_factory=list)
+    outcome: IdeaOutcome | None = None
+    created: str = ""
+    last_updated: str = ""
+    #: Keys present in the source YAML but not part of the idea schema.
+    unknown_fields: list[str] = field(default_factory=list)
+    #: Repository-relative path of the file this idea was loaded from.
+    source_file: str | None = None
 
 
 @dataclass
@@ -292,6 +397,9 @@ class Project:
     #: All nodes keyed by node id. Insertion order follows load order;
     #: consumers that need determinism should sort by id.
     nodes: dict[str, Node] = field(default_factory=dict)
+    #: All ideas keyed by idea id (spec §51). Insertion order follows load
+    #: order; consumers that need determinism should sort by id.
+    ideas: dict[str, Idea] = field(default_factory=dict)
     #: Schema-level problems collected during loading (already fatal enough
     #: to matter, but not fatal enough to abort the load).
     load_issues: list[ValidationIssue] = field(default_factory=list)
