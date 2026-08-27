@@ -607,9 +607,10 @@ def cmd_build(args: argparse.Namespace) -> int:
         out_display = str(project.output_dir().relative_to(project.root))
     except ValueError:  # output directory configured outside the project root
         out_display = str(project.output_dir())
+    ideas_part = " + ideas page" if project.ideas else ""
     print(
         f"Built {len(paths)} files into {out_display} "
-        f"(index + {len(project.nodes)} node pages + assets)"
+        f"(index + {len(project.nodes)} node pages{ideas_part} + assets)"
     )
     return EXIT_OK
 

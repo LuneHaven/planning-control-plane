@@ -72,6 +72,9 @@ planning process itself, not task assignment.
   browser
 - **Repository-native authority boundary** — PCP owns planning only; it
   links to your canonical documents, never replaces them
+- **Idea layer** — `.planning/ideas/` captures uncommitted thinking with
+  benchmark and methodology justification slots; `pcp ideas` lists and
+  triages it, and a bad idea file can never block the plan
 
 ## Installation
 
@@ -163,12 +166,56 @@ data sets, not translations of each other (see
 | `pcp status` | Terminal overview: project, current focus, decision counts, progress counts |
 | `pcp context [node] [--full]` | Print the session resume capsule (default: the current focus) |
 | `pcp focus [node]` | Show or switch the current focus (line-oriented edit of `project.yaml`; comments preserved) |
+| `pcp ideas [--status S] [--for NODE [--subtree]]` | List the idea layer, grouped by status. `--for` selects ideas related to a node or its ancestors; `--subtree` switches to the node's subtree |
 
 Global option: `-p/--project-root PATH` — target repository root (other
 commands search upward for `.planning/`).
 
 Exit codes: `0` success · `1` business failure (validation errors, unknown
 node, drift) · `2` usage/load error.
+
+## Idea Layer
+
+Planning nodes are a *post-decision* control system: a node exists because
+something was already committed to. The idea layer holds what comes before
+that — captured thinking that has not earned a place in the plan yet.
+
+```
+.planning/ideas/IDEA-0007.yaml     # one file per idea
+```
+
+```yaml
+id: IDEA-0007
+title: Add a trend comparison view to the dashboard
+status: OPEN                       # OPEN | PARKED | PROMOTED | DISCARDED
+detail: One paragraph. Capture asks for no structure.
+relates_to: [P2]                   # the node this thought was born from
+benchmark_sources:                 # what mature products actually do
+  - ref: docs/benchmarks/grafana-panels.md
+    note: Grafana's time-compare panel shows the demand is stable
+  - note: Stripe's month-over-month dashboard      # outside the repo: note only
+methodology_sources:               # why it holds, decoupled from any product
+  - ref: docs/method/heuristics.md
+outcome: ~                         # set when the idea graduates into a node
+created: 2026-08-27
+last_updated: 2026-08-27
+```
+
+Four properties are deliberate:
+
+- **Capture has no gate.** Empty justification slots are a valid state, and
+  they produce no warning.
+- **One bridge.** An idea enters the planning graph only by graduating:
+  create the node, then point `outcome.node` at it. Nodes never reference
+  ideas back, so reading the plan never drags in unfinished thinking.
+- **Ideas cannot break the plan.** A malformed idea file becomes a
+  validation issue and is skipped — `pcp status`, `pcp context` and
+  `pcp build` keep working, and idea-layer errors never block a build.
+- **Ideas are never in a capsule.** `pcp context` carries planning data
+  only; `pcp ideas --for <node>` is the separate, deliberate second lookup.
+
+The generated site gets an `ideas.html` page and a sidebar entry — only
+when the project actually has ideas.
 
 ## Planning Model
 

@@ -62,6 +62,8 @@
 - **中英双语界面**——English 与 简体中文，浏览器内运行时切换
 - **仓库原生的权威边界**——PCP 只拥有规划本身；它链接你的规范文档，
   从不取代它们
+- **想法层**——`.planning/ideas/` 捕获尚未承诺的思考，带对标与方法论两个论据槽；
+  `pcp ideas` 负责列出与分诊，坏的想法文件永远不会阻断计划
 
 ## 安装
 
@@ -150,12 +152,52 @@ pcp context       # 当前焦点的恢复 capsule
 | `pcp status` | 终端概览：项目、当前焦点、决策计数、进度计数 |
 | `pcp context [node] [--full]` | 输出会话恢复 capsule（默认当前焦点） |
 | `pcp focus [node]` | 查看或切换当前焦点（对 `project.yaml` 做行级编辑，保留注释） |
+| `pcp ideas [--status S] [--for NODE [--subtree]]` | 按状态分组列出想法层。`--for` 选出与某节点或其祖先相关的想法，`--subtree` 切换为该节点的子树方向 |
 
 全局参数：`-p/--project-root PATH`——目标仓库根目录（其余命令从该目录
 向上查找 `.planning/`）。
 
 退出码：`0` 成功 · `1` 业务失败（校验错误、未知节点、drift）·
 `2` 用法/加载错误。
+
+## 想法层
+
+规划节点是**决策之后**的控制系统：节点存在，是因为某件事已经被承诺。想法层
+承载在此之前的东西——已经捕获、但还没有资格进入计划的思考。
+
+```
+.planning/ideas/IDEA-0007.yaml     # 每个想法一个文件
+```
+
+```yaml
+id: IDEA-0007
+title: Add a trend comparison view to the dashboard
+status: OPEN                       # OPEN | PARKED | PROMOTED | DISCARDED
+detail: One paragraph. Capture asks for no structure.
+relates_to: [P2]                   # 这个想法诞生的节点
+benchmark_sources:                 # 成熟产品实际怎么做
+  - ref: docs/benchmarks/grafana-panels.md
+    note: Grafana 的对比面板说明需求是稳定的
+  - note: Stripe 的月环比面板              # 仓库外：只写 note
+methodology_sources:               # 为什么成立，与具体产品解耦
+  - ref: docs/method/heuristics.md
+outcome: ~                         # 想法毕业为节点时填写
+created: 2026-08-27
+last_updated: 2026-08-27
+```
+
+四条性质是刻意的：
+
+- **捕获零门槛。** 论据槽全空是合法状态，不产生任何 WARNING。
+- **只有一座桥。** 想法进入规划图的唯一途径是毕业：先建节点，再把
+  `outcome.node` 指向它。节点永不反向引用想法，因此读计划不会牵扯到未完成的
+  思考。
+- **想法弄不坏计划。** 想法文件格式错误只会降级为一条校验 issue 并跳过该文件，
+  `pcp status` / `pcp context` / `pcp build` 照常工作；想法层 ERROR 也不阻断构建。
+- **capsule 永不含想法。** `pcp context` 只携带规划数据；
+  `pcp ideas --for <node>` 是另一次显式的、有意的查询。
+
+生成站点会多出 `ideas.html` 页与侧栏入口——仅当项目确实有想法时才出现。
 
 ## 规划模型
 

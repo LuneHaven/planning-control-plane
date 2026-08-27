@@ -146,6 +146,14 @@ def _page(dist, name):
     return (dist / name).read_text(encoding="utf-8")
 
 
+def make_project_room(tmp_path, name=None):
+    """A fresh sub-directory so two builds in one test module never share
+    a repository root."""
+    room = tmp_path / (name or "room")
+    room.mkdir(exist_ok=True)
+    return room
+
+
 # ---------------------------------------------------- ordering source
 
 
@@ -494,3 +502,24 @@ def test_idea_css_is_append_only_over_phase1(plain_dist):
     # unchecked — and everything from the marker on belongs to the
     # selector/at-rule gate in the test above.
     assert built[: built.index(marker)] == phase1 + b"\n"
+
+
+# ------------------------------------------------------- build summary line
+
+
+def test_build_summary_counts_the_ideas_page(make_project, tmp_path, cli):
+    project, root = make_project(
+        make_project_room(tmp_path),
+        node_dicts=IDEA_NODES,
+        raw_files={"ideas/IDEA-1.yaml": "id: IDEA-1\ntitle: T\nstatus: OPEN\n"},
+    )
+    code, out, _err = cli("-p", str(root), "build")
+    assert code == 0
+    assert "+ ideas page" in out
+
+
+def test_build_summary_omits_the_ideas_page_without_ideas(make_project, tmp_path, cli):
+    _project, root = make_project(make_project_room(tmp_path))
+    code, out, _err = cli("-p", str(root), "build")
+    assert code == 0
+    assert "ideas" not in out
