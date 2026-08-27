@@ -354,9 +354,13 @@ def test_sidebar_entry_sits_outside_the_planning_tree(ideas_dist):
     """IDEA-D54: a separate section, not a tree node — the sidebar tree
     stays the planning graph and nothing else (invariant 3)."""
     page = _page(ideas_dist, "index.html")
-    tree = page[page.index('id="planning-tree"'):page.index("</ul>", page.index('id="planning-tree"'))]
-    assert "sidebar-extra" not in tree
-    assert page.index('id="planning-tree"') < page.index('class="sidebar-extra"')
+    nav_start = page.index('<nav class="sidebar-nav"')
+    nav_end = page.index("</nav>", nav_start)
+    tree_nav = page[nav_start:nav_end]
+    assert "sidebar-extra" not in tree_nav
+    # ... and the entry lives in the gap between that nav's close and the
+    # aside's — after the tree, still inside the sidebar.
+    assert nav_end < page.index('class="sidebar-extra"') < page.index("</aside>")
 
 
 def test_sidebar_entry_carries_no_count_badge(ideas_dist):
@@ -420,31 +424,53 @@ def test_no_ideas_pages_contain_no_idea_markup_outside_the_payload(plain_dist):
         body = re.sub(
             r'<script type="application/json" id="pcp-i18n">.*?</script>', "", page, flags=re.DOTALL
         )
-        assert "idea" not in body.lower(), path.name
+        lowered = body.lower()
+        assert "idea" not in lowered, (
+            path.name,
+            re.findall(r".{0,30}idea.{0,30}", lowered)[:3],
+        )
+
+
+#: Header comment of the idea-layer block in style.css. Both CSS gates
+#: below key off it; the asserts guard the lookup so a reworded marker
+#: reads as a gate failure, not a ValueError.
+_IDEA_LAYER_MARKER = "/* ----------------------------------------------------------- idea layer */"
 
 
 def test_idea_css_cannot_restyle_pages_that_have_no_ideas(plain_dist):
     """style.css is a shared asset, so the idea rules ship to every project.
     They are inert there only if every selector is namespaced — this pins
-    that, so a future edit cannot silently restyle existing pages."""
+    that, so a future edit cannot silently restyle existing pages.
+
+    The gate polices marker-to-EOF: a later, unrelated feature that
+    appends CSS after the idea block will trip it. That is deliberate —
+    the friction forces a conscious fixture/gate update, never silent drift.
+    """
     css = (plain_dist / "assets" / "style.css").read_text(encoding="utf-8")
-    block = css[css.index("/* ----------------------------------------------------------- idea layer */"):]
+    assert _IDEA_LAYER_MARKER in css
+    block = css[css.index(_IDEA_LAYER_MARKER):]
 
-    # The selector regex below cannot see a single-line at-rule: `@` is not
-    # in its character class, so `@media print { body { … } }` is skipped
-    # whole. (A *multi-line* at-rule still trips the check, because its
-    # indented inner selectors do match.) The idea layer needs no at-rule
-    # at all — it styles with the existing tokens, which style.css already
-    # redefines under `@media (prefers-color-scheme: dark)`, so dark mode
-    # follows for free. Needing one here would mean someone introduced a
-    # hard-coded colour: exactly when a review should happen.
-    assert "@media" not in block and "@keyframes" not in block and "@import" not in block
+    # Comments are stripped first, so comment prose can neither pose as a
+    # selector nor hide one. What remains is plain rules, and a selector
+    # run is *everything* between the previous `}` and the next `{` (plus
+    # the prefix before the very first `{`) — which, unlike a line-anchored
+    # regex, also sees `#id` selectors, `:not()`/`:is()`-style parentheses
+    # and every line of a multi-line selector group. At-rules are rejected
+    # wholesale before that: the idea layer styles with the existing tokens
+    # (already redefined under the phase-1 dark-mode `@media`), so needing
+    # one would mean a hard-coded colour — exactly when a review should
+    # happen.
+    rules = re.sub(r"/\*.*?\*/", "", block, flags=re.DOTALL)
+    assert not re.search(r"^\s*@", rules, flags=re.MULTILINE), "at-rule in the idea layer"
 
-    selectors = re.findall(r"^([.\w\[\]\"=~^$*|:>+ ,-]+)\{", block, flags=re.MULTILINE)
+    selectors = re.findall(r"\}([^{}]*)\{", rules)
+    if "{" in rules:
+        selectors.insert(0, rules[: rules.index("{")])
     for selector in selectors:
         for part in selector.split(","):
             part = part.strip()
-            assert part.startswith((".idea-", ".ideas-", ".sidebar-extra")), part
+            if part:
+                assert part.startswith((".idea-", ".ideas-", ".sidebar-extra")), part
 
 
 def test_idea_css_is_append_only_over_phase1(plain_dist):
@@ -460,4 +486,11 @@ def test_idea_css_is_append_only_over_phase1(plain_dist):
     """
     built = (plain_dist / "assets" / "style.css").read_bytes()
     phase1 = (Path(__file__).parent / "fixtures" / "phase1_style.css").read_bytes()
-    assert built.startswith(phase1)
+    marker = _IDEA_LAYER_MARKER.encode()
+    assert marker in built
+    # Every byte is pinned by exactly one gate: the head below must be the
+    # phase-1 sheet plus the single newline that separates it from the idea
+    # layer — a bare ``startswith(phase1)`` would leave that one-byte gap
+    # unchecked — and everything from the marker on belongs to the
+    # selector/at-rule gate in the test above.
+    assert built[: built.index(marker)] == phase1 + b"\n"

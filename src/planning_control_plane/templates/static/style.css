@@ -1892,9 +1892,10 @@ html[data-locale="en"] .badge-raw {
 .sidebar-extra-link:hover,
 .sidebar-extra-link:focus-visible {
   color: var(--text);
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
+/* Weight-only on purpose: a background would shift this block link's box and duplicate the tree/topbar active treatment. */
 .sidebar-extra-link[aria-current="page"] {
   color: var(--text);
   font-weight: 600;
