@@ -20,6 +20,10 @@ from planning_control_plane.model import (
     PLANNING_DIR,
     PCPError,
     Decision,
+    Idea,
+    IdeaOutcome,
+    IdeaSource,
+    idea_issue,
     Node,
     Project,
     ProjectConfig,
@@ -34,6 +38,23 @@ from planning_control_plane.model import (
 PROJECT_FILE = "project.yaml"
 ROADMAP_FILE = "roadmap.yaml"
 NODES_DIR = "nodes"
+IDEAS_DIR = "ideas"
+
+#: Keys of the idea schema (spec §51.2).
+IDEA_FIELDS = frozenset(
+    {
+        "id",
+        "title",
+        "status",
+        "detail",
+        "relates_to",
+        "benchmark_sources",
+        "methodology_sources",
+        "outcome",
+        "created",
+        "last_updated",
+    }
+)
 
 #: Keys of the node schema (spec §8).
 NODE_FIELDS = frozenset(
@@ -235,6 +256,105 @@ def _as_text(value) -> str:
     if not isinstance(value, str):
         return str(value)
     return value.strip()
+
+
+def _as_idea_string_list(value, idea_id: str, key: str, issues: list) -> list[str]:
+    """Idea-layer twin of :func:`_as_string_list`: same tolerance, but
+    reports ``invalid-idea-field`` with the ``idea '<id>': `` prefix so the
+    issue stays identifiable as idea-layer (spec §58.1 / IDEA-D64)."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        issues.append(
+            idea_issue(Severity.ERROR, "invalid-idea-field", f"'{key}' must be a list, got {type(value).__name__}", idea_id, idea_id)
+        )
+        return []
+    result = []
+    for item in value:
+        if isinstance(item, str) and item.strip():
+            result.append(item)
+        else:
+            issues.append(idea_issue(Severity.ERROR, "invalid-idea-field", f"'{key}' entries must be non-empty strings", idea_id, idea_id))
+    return result
+
+
+def _as_idea_sources(value, idea_id: str, key: str, issues: list) -> list[IdeaSource]:
+    """Parse one justification list (spec §52.2): entries are mappings
+    carrying a repository-relative ``ref`` and/or a free-text ``note``;
+    an entry with neither is meaningless and reported."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        issues.append(
+            idea_issue(Severity.ERROR, "invalid-idea-field", f"'{key}' must be a list, got {type(value).__name__}", idea_id, idea_id)
+        )
+        return []
+    result: list[IdeaSource] = []
+    for item in value:
+        if not isinstance(item, dict):
+            issues.append(idea_issue(Severity.ERROR, "invalid-idea-source", f"'{key}' entries must be mappings with 'ref' and/or 'note'", idea_id, idea_id))
+            continue
+        ref = item.get("ref")
+        note = item.get("note")
+        ref_ok = isinstance(ref, str) and ref.strip()
+        note_ok = isinstance(note, str) and note.strip()
+        if not ref_ok and not note_ok:
+            issues.append(idea_issue(Severity.ERROR, "invalid-idea-source", f"'{key}' entry needs a non-empty 'ref' or 'note'", idea_id, idea_id))
+            continue
+        result.append(IdeaSource(ref=ref.strip() if ref_ok else None, note=note.strip() if note_ok else None))
+    return result
+
+
+def _as_idea_outcome(value, idea_id: str, issues: list) -> IdeaOutcome | None:
+    """Parse ``outcome`` (spec §55.2): a mapping with a required non-empty
+    ``node`` and an optional free-text ``note``."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        issues.append(idea_issue(Severity.ERROR, "invalid-idea-outcome", "'outcome' must be a mapping with 'node' and optional 'note'", idea_id, idea_id))
+        return None
+    node = value.get("node")
+    note = value.get("note")
+    if not isinstance(node, str) or not node.strip():
+        issues.append(idea_issue(Severity.ERROR, "invalid-idea-outcome", "'outcome' needs a non-empty 'node'", idea_id, idea_id))
+        return None
+    return IdeaOutcome(node=node.strip(), note=note.strip() if isinstance(note, str) else "")
+
+
+def parse_idea(data: object, source_file: str | None, issues: list) -> Idea | None:
+    """Parse one idea mapping. Returns ``None`` when the entry is unusable
+    (not a mapping, or missing/empty ``id``) — mirrors :func:`parse_node`.
+    A present-but-empty value (e.g. ``status: ""``) is kept verbatim for
+    the validator to report; only absent (or null) keys fall back to the
+    schema default. Silently defaulting would hide typos.
+    """
+    if not isinstance(data, dict):
+        issues.append(idea_issue(Severity.ERROR, "invalid-idea", f"idea entry in {source_file or 'ideas'} is not a mapping", source_file or "ideas"))
+        return None
+    idea_id = data.get("id")
+    if not isinstance(idea_id, str) or not idea_id.strip():
+        issues.append(idea_issue(Severity.ERROR, "invalid-idea", f"idea entry in {source_file or 'ideas'} is missing a non-empty 'id'", source_file or "ideas"))
+        return None
+    idea_id = idea_id.strip()
+
+    title = _as_text(data.get("title"))
+    if not title:
+        issues.append(idea_issue(Severity.ERROR, "missing-idea-title", "idea is missing a non-empty 'title'", idea_id, idea_id))
+        title = idea_id
+
+    idea = Idea(id=idea_id, title=title, source_file=source_file)
+    if data.get("status") is not None:
+        idea.status = _as_text(data.get("status"))
+    idea.detail = _as_text(data.get("detail"))
+    idea.created = _as_text(data.get("created"))
+    idea.last_updated = _as_text(data.get("last_updated"))
+    idea.relates_to = _as_idea_string_list(data.get("relates_to"), idea_id, "relates_to", issues)
+    idea.benchmark_sources = _as_idea_sources(data.get("benchmark_sources"), idea_id, "benchmark_sources", issues)
+    idea.methodology_sources = _as_idea_sources(data.get("methodology_sources"), idea_id, "methodology_sources", issues)
+    idea.outcome = _as_idea_outcome(data.get("outcome"), idea_id, issues)
+
+    idea.unknown_fields = sorted(str(k) for k in data.keys() if k not in IDEA_FIELDS)
+    return idea
 
 
 def parse_node(data: object, source_file: str | None, issues: list) -> Node | None:

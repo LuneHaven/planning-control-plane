@@ -1,5 +1,6 @@
 """Idea layer tests (spec: specs/ideas-spec-draft.zh-CN.md, phase 1)."""
 
+from planning_control_plane.loader import parse_idea
 from planning_control_plane.model import (
     IDEA_RULE_NAMES,
     Idea,
@@ -59,3 +60,96 @@ def test_idea_issue_prefix():
 def test_project_exposes_ideas_mapping(make_project, tmp_path):
     project, _root = make_project(tmp_path)
     assert project.ideas == {}
+
+
+def test_parse_idea_minimal_defaults():
+    issues = []
+    idea = parse_idea({"id": "IDEA-1", "title": "T"}, "ideas/IDEA-1.yaml", issues)
+    assert idea.id == "IDEA-1"
+    assert idea.status == "OPEN"
+    assert idea.source_file == "ideas/IDEA-1.yaml"
+    assert issues == []
+
+
+def test_parse_idea_missing_title_falls_back_to_id():
+    issues = []
+    idea = parse_idea({"id": "IDEA-1"}, None, issues)
+    assert idea.title == "IDEA-1"
+    assert [i.rule for i in issues] == ["missing-idea-title"]
+    assert issues[0].message.startswith("idea 'IDEA-1': ")
+
+
+def test_parse_idea_not_a_mapping():
+    issues = []
+    assert parse_idea(["nope"], "ideas/X.yaml", issues) is None
+    assert [i.rule for i in issues] == ["invalid-idea"]
+    assert issues[0].node_id is None
+
+
+def test_parse_idea_missing_id():
+    issues = []
+    assert parse_idea({"title": "T"}, "ideas/X.yaml", issues) is None
+    assert [i.rule for i in issues] == ["invalid-idea"]
+
+
+def test_parse_idea_keeps_invalid_status_verbatim():
+    # Loader philosophy (spec §10): raw values survive loading; the
+    # validator reports them in one pass.
+    issues = []
+    idea = parse_idea({"id": "IDEA-1", "title": "T", "status": "PAUSED"}, None, issues)
+    assert idea.status == "PAUSED"
+    assert issues == []
+
+
+def test_parse_idea_unknown_fields_tracked():
+    idea = parse_idea({"id": "IDEA-1", "title": "T", "tags": ["x"], "builds_on": []}, None, [])
+    assert idea.unknown_fields == ["builds_on", "tags"]
+
+
+def test_parse_idea_sources_accept_ref_note_or_both():
+    issues = []
+    idea = parse_idea(
+        {
+            "id": "IDEA-1",
+            "title": "T",
+            "benchmark_sources": [{"ref": "docs/a.md", "note": "n"}, {"note": "外部对标"}],
+            "methodology_sources": [{"ref": "docs/b.md"}, {}],
+        },
+        None,
+        issues,
+    )
+    assert idea.benchmark_sources == [IdeaSource(ref="docs/a.md", note="n"), IdeaSource(ref=None, note="外部对标")]
+    assert idea.methodology_sources == [IdeaSource(ref="docs/b.md", note=None)]
+    assert [i.rule for i in issues] == ["invalid-idea-source"]
+
+
+def test_parse_idea_sources_not_a_list():
+    issues = []
+    idea = parse_idea({"id": "IDEA-1", "title": "T", "methodology_sources": "docs/a.md"}, None, issues)
+    assert idea.methodology_sources == []
+    assert [i.rule for i in issues] == ["invalid-idea-field"]
+
+
+def test_parse_idea_source_entries_must_be_mappings():
+    issues = []
+    idea = parse_idea({"id": "IDEA-1", "title": "T", "benchmark_sources": ["docs/a.md"]}, None, issues)
+    assert idea.benchmark_sources == []
+    assert [i.rule for i in issues] == ["invalid-idea-source"]
+
+
+def test_parse_idea_outcome_variants():
+    issues = []
+    ok = parse_idea({"id": "A", "title": "T", "outcome": {"node": "P2", "note": "n"}}, None, issues)
+    assert ok.outcome == IdeaOutcome(node="P2", note="n")
+    no_node = parse_idea({"id": "B", "title": "T", "outcome": {"note": "no node"}}, None, issues)
+    assert no_node.outcome is None
+    bad = parse_idea({"id": "C", "title": "T", "outcome": ["x"]}, None, issues)
+    assert bad.outcome is None
+    assert [i.rule for i in issues] == ["invalid-idea-outcome", "invalid-idea-outcome"]
+
+
+def test_parse_idea_relates_to_list_validation():
+    issues = []
+    idea = parse_idea({"id": "A", "title": "T", "relates_to": "P2"}, None, issues)
+    assert idea.relates_to == []
+    assert [i.rule for i in issues] == ["invalid-idea-field"]
