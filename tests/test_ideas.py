@@ -1,6 +1,6 @@
 """Idea layer tests (spec: specs/ideas-spec-draft.zh-CN.md, phase 1)."""
 
-from planning_control_plane.loader import parse_idea
+from planning_control_plane.loader import load_project, parse_idea
 from planning_control_plane.model import (
     IDEA_RULE_NAMES,
     Idea,
@@ -228,6 +228,17 @@ def test_broken_idea_yaml_never_bricks_the_project(make_project, tmp_path):
     assert project.load_issues[0].node_id is None
 
 
+def test_undecodable_idea_file_degrades_to_issue_not_a_crash(make_project, tmp_path):
+    """IDEA-D58: an unreadable (non-UTF-8) idea file must not brick the
+    load — it becomes invalid-idea-file and the other ideas still load."""
+    _project, root = make_project(tmp_path, raw_files={"ideas/IDEA-0007.yaml": GOOD_IDEA})
+    (root / ".planning/ideas/GBK.yaml").write_bytes("id: IDEA-GBK\ntitle: 中文\n".encode("gbk"))
+    project = load_project(root)
+    assert "IDEA-0007" in project.ideas
+    assert [i.rule for i in project.load_issues] == ["invalid-idea-file"]
+    assert project.load_issues[0].message.startswith("idea '.planning/ideas/GBK.yaml': ")
+
+
 def test_duplicate_keys_in_idea_file_are_an_issue_not_a_crash(make_project, tmp_path):
     project, _root = make_project(
         tmp_path,
@@ -268,12 +279,15 @@ def test_invalid_idea_id_charset_reported_but_kept(make_project, tmp_path):
     assert "bad id!" in project.ideas
 
 
-def test_nested_idea_file_warns(make_project, tmp_path):
+def test_ignored_idea_files_warn_nested_and_wrong_suffix(make_project, tmp_path):
     project, _root = make_project(
         tmp_path,
         raw_files={
             "ideas/IDEA-0007.yaml": GOOD_IDEA,
             "ideas/archive/IDEA-OLD.yaml": "id: IDEA-OLD\ntitle: Old\n",
+            "ideas/extra.yml": "id: X\n",
         },
     )
-    assert [i.rule for i in project.load_issues] == ["ignored-idea-file"]
+    assert [i.rule for i in project.load_issues] == ["ignored-idea-file", "ignored-idea-file"]
+    assert "archive/IDEA-OLD.yaml" in project.load_issues[0].message
+    assert "extra.yml" in project.load_issues[1].message

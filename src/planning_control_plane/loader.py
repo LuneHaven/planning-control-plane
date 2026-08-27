@@ -190,7 +190,7 @@ def _read_idea_yaml(path: Path, rel: str, issues: list) -> tuple[bool, object]:
     try:
         with path.open("r", encoding="utf-8") as handle:
             return True, yaml.load(handle, Loader=_UniqueKeyLoader)
-    except (yaml.YAMLError, OSError) as exc:
+    except (yaml.YAMLError, OSError, UnicodeDecodeError) as exc:
         issues.append(idea_issue(Severity.ERROR, "invalid-idea-file", f"cannot read or parse ({exc})", rel))
         return False, None
 
