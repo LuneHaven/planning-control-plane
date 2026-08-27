@@ -13,7 +13,10 @@ Rule groups:
 * planning consistency — DONE/BLOCKED/writeback/focus/deferred-dependency
   combinations (spec §13, §16);
 * references — repository-relative path checks for canonical and evidence
-  sources, checked and reported as two distinct kinds (spec §17).
+  sources, checked and reported as two distinct kinds (spec §17);
+* ideas — the independent idea-layer rule group (spec §58.1): constrains
+  ideas only and never feeds back into node rules (IDEA-D48); every issue
+  it emits carries the ``idea '<id>': `` message prefix (IDEA-D64).
 
 The validator never mutates the project and never raises on bad data:
 invalid enum values were deliberately kept by the loader so that every
@@ -27,12 +30,14 @@ from pathlib import Path, PurePath
 
 from planning_control_plane.graph import PlanningGraph
 from planning_control_plane.model import (
+    IdeaStatus,
     NodeStatus,
     NodeType,
     Project,
     Severity,
     TrackStatus,
     ValidationIssue,
+    idea_issue,
 )
 
 #: Controlled enum values as plain strings, for membership checks on the
@@ -40,6 +45,9 @@ from planning_control_plane.model import (
 _NODE_TYPE_VALUES = frozenset(member.value for member in NodeType)
 _NODE_STATUS_VALUES = frozenset(member.value for member in NodeStatus)
 _TRACK_STATUS_VALUES = frozenset(member.value for member in TrackStatus)
+
+#: Controlled idea status values as plain strings (spec §53.1).
+_IDEA_STATUS_VALUES = frozenset(member.value for member in IdeaStatus)
 
 #: ERROR sorts before WARNING by explicit rank, not by alphabetical accident.
 _SEVERITY_ORDER = {Severity.ERROR: 0, Severity.WARNING: 1}
@@ -77,6 +85,7 @@ def validate_project(project: Project) -> list[ValidationIssue]:
     _check_structure(project, graph, issues)
     _check_current_focus(project, issues)
     _check_decisions(project, issues)
+    _check_ideas(project, issues)
     _check_consistency(project, graph, issues)
     _check_references(project, issues)
     _check_output_directory(project, issues)
@@ -188,6 +197,77 @@ def _check_decisions(project: Project, issues: list[ValidationIssue]) -> None:
                     node_id,
                 )
             )
+
+
+# ------------------------------------------------------------------- ideas
+
+
+def _check_ideas(project: Project, issues: list[ValidationIssue]) -> None:
+    """Idea-layer rules (spec §58.1). Independent rule group: constrains
+    ideas only, never feeds back into node rules (IDEA-D48)."""
+    known_nodes = set(project.nodes)
+    for idea_id in sorted(project.ideas):
+        idea = project.ideas[idea_id]
+
+        if idea.status not in _IDEA_STATUS_VALUES:
+            issues.append(
+                idea_issue(Severity.ERROR, "invalid-idea-status", f"status '{idea.status}' is not a valid idea status", idea_id, idea_id)
+            )
+
+        for target in sorted(set(idea.relates_to)):
+            if target not in known_nodes:
+                issues.append(
+                    idea_issue(Severity.ERROR, "missing-idea-relates-target", f"relates_to target '{target}' is not a known node", idea_id, idea_id)
+                )
+
+        if idea.outcome is not None and idea.outcome.node not in known_nodes:
+            issues.append(
+                idea_issue(Severity.ERROR, "missing-outcome-target", f"outcome node '{idea.outcome.node}' is not a known node", idea_id, idea_id)
+            )
+        if idea.status == IdeaStatus.PROMOTED.value and idea.outcome is None:
+            issues.append(
+                idea_issue(Severity.ERROR, "promoted-without-outcome", "status is PROMOTED but outcome is missing", idea_id, idea_id)
+            )
+        if idea.outcome is not None and idea.status != IdeaStatus.PROMOTED.value:
+            issues.append(
+                idea_issue(Severity.WARNING, "outcome-without-promotion", f"outcome is set but status is '{idea.status}' (graduation pending?)", idea_id, idea_id)
+            )
+
+        if idea_id in known_nodes:
+            issues.append(
+                idea_issue(Severity.WARNING, "idea-id-collides-with-node", "idea id is also used by a planning node; consider renaming to avoid confusion", idea_id, idea_id)
+            )
+
+        if idea.unknown_fields:
+            issues.append(
+                idea_issue(Severity.WARNING, "idea-unknown-field", f"unknown idea fields: {', '.join(idea.unknown_fields)}", idea_id, idea_id)
+            )
+
+        for key in ("benchmark_sources", "methodology_sources"):
+            for entry in getattr(idea, key):
+                if entry.ref:
+                    _check_idea_reference(project.root, idea_id, key, entry.ref, issues)
+
+
+def _check_idea_reference(root: Path, idea_id: str, key: str, path: str, issues: list[ValidationIssue]) -> None:
+    """Check one idea justification ``ref`` (spec §52.3): escaping the
+    repository is an ERROR, a missing file only a WARNING — the evidence
+    split, mirrored for the idea layer."""
+    if PurePath(path).is_absolute():
+        issues.append(
+            idea_issue(Severity.ERROR, "idea-source-escapes-repo", f"{key} entry '{path}' is not repository-relative", idea_id, idea_id)
+        )
+        return
+    candidate = Path(os.path.normpath(os.path.join(root, path)))
+    if not candidate.is_relative_to(root):
+        issues.append(
+            idea_issue(Severity.ERROR, "idea-source-escapes-repo", f"{key} entry '{path}' is not repository-relative", idea_id, idea_id)
+        )
+        return
+    if not candidate.is_file():
+        issues.append(
+            idea_issue(Severity.WARNING, "idea-source-missing", f"{key} entry '{path}' does not exist in the repository", idea_id, idea_id)
+        )
 
 
 # ------------------------------------------------------- planning consistency

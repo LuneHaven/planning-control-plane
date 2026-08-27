@@ -10,6 +10,7 @@ from planning_control_plane.model import (
     Severity,
     idea_issue,
 )
+from planning_control_plane.validator import validate_project
 
 
 def test_idea_defaults():
@@ -291,3 +292,98 @@ def test_ignored_idea_files_warn_nested_and_wrong_suffix(make_project, tmp_path)
     assert [i.rule for i in project.load_issues] == ["ignored-idea-file", "ignored-idea-file"]
     assert "archive/IDEA-OLD.yaml" in project.load_issues[0].message
     assert "extra.yml" in project.load_issues[1].message
+
+
+# --------------------------------------------------------------- validation
+
+
+def _idea_project(make_project, tmp_path, idea_yaml, nodes=None):
+    return make_project(tmp_path, node_dicts=nodes or [], raw_files={"ideas/IDEA-1.yaml": idea_yaml})
+
+
+def test_invalid_idea_status(make_project, tmp_path, by_rule):
+    project, _root = _idea_project(make_project, tmp_path, "id: IDEA-1\ntitle: T\nstatus: PAUSED\n")
+    issues = by_rule(validate_project(project), "invalid-idea-status")
+    assert [i.severity for i in issues] == [Severity.ERROR]
+    assert issues[0].node_id == "IDEA-1"
+
+
+def test_missing_idea_relates_target(make_project, tmp_path, by_rule):
+    project, _root = _idea_project(make_project, tmp_path, "id: IDEA-1\ntitle: T\nrelates_to: [NOPE]\n")
+    assert [i.severity for i in by_rule(validate_project(project), "missing-idea-relates-target")] == [Severity.ERROR]
+
+
+def test_promoted_without_outcome(make_project, tmp_path, by_rule):
+    project, _root = _idea_project(make_project, tmp_path, "id: IDEA-1\ntitle: T\nstatus: PROMOTED\n")
+    assert [i.severity for i in by_rule(validate_project(project), "promoted-without-outcome")] == [Severity.ERROR]
+
+
+def test_promoted_outcome_target_must_exist(make_project, tmp_path, by_rule):
+    project, _root = _idea_project(make_project, tmp_path, "id: IDEA-1\ntitle: T\nstatus: PROMOTED\noutcome:\n  node: GONE\n")
+    assert [i.severity for i in by_rule(validate_project(project), "missing-outcome-target")] == [Severity.ERROR]
+
+
+def test_outcome_without_promotion_warns(make_project, tmp_path, by_rule):
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    project, _root = _idea_project(make_project, tmp_path, "id: IDEA-1\ntitle: T\nstatus: OPEN\noutcome:\n  node: P1\n", nodes)
+    issues = validate_project(project)
+    assert [i.severity for i in by_rule(issues, "outcome-without-promotion")] == [Severity.WARNING]
+    assert by_rule(issues, "missing-outcome-target") == []  # node exists — no ERROR
+
+
+def test_idea_ref_escapes_repo(make_project, tmp_path, by_rule):
+    project, _root = _idea_project(
+        make_project, tmp_path, "id: IDEA-1\ntitle: T\nbenchmark_sources:\n  - ref: \"/etc/passwd\"\n    note: n\n"
+    )
+    assert [i.severity for i in by_rule(validate_project(project), "idea-source-escapes-repo")] == [Severity.ERROR]
+
+
+def test_idea_ref_missing_warns(make_project, tmp_path, by_rule):
+    project, _root = _idea_project(
+        make_project, tmp_path, "id: IDEA-1\ntitle: T\nmethodology_sources:\n  - ref: docs/absent.md\n"
+    )
+    assert [i.severity for i in by_rule(validate_project(project), "idea-source-missing")] == [Severity.WARNING]
+
+
+def test_idea_id_collision_warns(make_project, tmp_path, by_rule):
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    project, _root = _idea_project(make_project, tmp_path, "id: P1\ntitle: T\n", nodes)
+    assert [i.severity for i in by_rule(validate_project(project), "idea-id-collides-with-node")] == [Severity.WARNING]
+
+
+def test_idea_unknown_field_reported(make_project, tmp_path, by_rule):
+    project, _root = _idea_project(make_project, tmp_path, "id: IDEA-1\ntitle: T\ntags: [x]\n")
+    assert [i.severity for i in by_rule(validate_project(project), "idea-unknown-field")] == [Severity.WARNING]
+
+
+def test_empty_justification_slots_produce_no_issue(make_project, tmp_path):
+    """IDEA-D22 (R1): justification completeness never enters validation."""
+    project, _root = _idea_project(make_project, tmp_path, "id: IDEA-1\ntitle: T\n")
+    assert validate_project(project) == []
+
+
+def test_every_idea_issue_carries_the_prefix(make_project, tmp_path):
+    project, _root = make_project(
+        tmp_path,
+        node_dicts=[{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}],
+        raw_files={
+            "ideas/A.yaml": "id: A\ntitle: T\nstatus: PAUSED\nrelates_to: [NOPE]\n",
+            "ideas/B.yaml": "id: B\ntitle: T\nstatus: PROMOTED\n",
+        },
+    )
+    idea_issues = [i for i in validate_project(project) if i.rule in IDEA_RULE_NAMES]
+    assert len(idea_issues) >= 3
+    assert all(i.message.startswith("idea '") for i in idea_issues)
+
+
+def test_idea_rules_stay_within_the_closed_set(make_project, tmp_path):
+    """IDEA-D48: idea problems never leak into node-layer rules."""
+    project, _root = make_project(
+        tmp_path,
+        node_dicts=[{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}],
+        raw_files={"ideas/A.yaml": "id: A\ntitle: T\nstatus: PAUSED\nrelates_to: [NOPE]\noutcome:\n  node: GONE\n"},
+    )
+    for issue in validate_project(project):
+        assert issue.rule in IDEA_RULE_NAMES or issue.rule in {
+            "current-focus-not-set",  # pre-existing project-level warning, unrelated
+        }
