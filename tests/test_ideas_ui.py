@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from planning_control_plane import generator, i18n
-from planning_control_plane.model import IdeaStatus
+from planning_control_plane.model import IdeaStatus, NodeStatus
 
 
 def test_idea_status_labels_exist_in_both_locales():
@@ -45,11 +45,12 @@ def test_idea_status_key_is_none_outside_the_controlled_enum():
 def test_idea_status_namespace_does_not_collide_with_node_status():
     """Two enums, two namespaces (IDEA-D14). A shared key would let a node
     status re-label an idea badge at runtime, or the reverse."""
-    node_keys = {k for k in i18n.TRANSLATIONS["en"] if k.startswith("status.")}
     idea_keys = {k for k in i18n.TRANSLATIONS["en"] if k.startswith("idea_status.")}
     assert idea_keys
-    assert not node_keys & idea_keys
-    assert i18n.status_key("OPEN") is None  # OPEN is not a NodeStatus
+    for status in IdeaStatus:
+        assert i18n.status_key(status.value) is None, status.value
+    for status in NodeStatus:
+        assert i18n.idea_status_key(status.value) is None, status.value
 
 
 def test_ideas_page_strings_exist_in_both_locales():
