@@ -547,7 +547,7 @@ def cmd_ideas(args: argparse.Namespace) -> int:
 
     if shown == 0:
         if args.node is not None and any(groups[status] for status in _IDEA_STATUS_ORDER):
-            print(f"no ideas match the requested status filter for node '{args.node}'")
+            print(f"no ideas match the requested status filter for node '{args.node}'" + (" (subtree)" if args.subtree else ""))
         elif args.node is not None:
             print(f"no matching ideas for node '{args.node}'" + (" (subtree)" if args.subtree else ""))
         elif project.ideas:

@@ -793,3 +793,19 @@ def test_cli_ideas_all_files_broken_does_not_claim_there_are_none(make_project, 
     assert "no ideas yet" not in out
     assert "could not be loaded" in out
     assert "1 idea record(s) not shown" in out
+
+
+def test_cli_ideas_hidden_note_counts_a_bad_status_idea_that_hits_the_scope(make_project, tmp_path, cli):
+    """The scoped count is zero only when nothing hidden hits the scope; a
+    bad-status idea that DOES relate to the node was suppressible by this
+    listing and must still be counted."""
+    raw = {
+        "ideas/IDEA-OK.yaml": "id: IDEA-OK\ntitle: ok\nstatus: OPEN\nrelates_to: [P2]\n",
+        "ideas/IDEA-BADSCOPED.yaml": "id: IDEA-BADSCOPED\ntitle: bad\nstatus: WISHLIST\nrelates_to: [P2]\n",
+    }
+    _project, root = make_project(tmp_path, node_dicts=_three_nodes(), raw_files=raw)
+
+    code, out, _err = cli("-p", str(root), "ideas", "--for", "P2")
+    assert code == 0
+    assert "IDEA-OK" in out
+    assert "1 idea record(s) not shown" in out
