@@ -519,7 +519,7 @@ def test_build_summary_counts_the_ideas_page(make_project, tmp_path, cli):
 
 
 def test_build_summary_omits_the_ideas_page_without_ideas(make_project, tmp_path, cli):
-    _project, root = make_project(make_project_room(tmp_path))
+    _project, root = make_project(make_project_room(tmp_path), node_dicts=IDEA_NODES)
     code, out, _err = cli("-p", str(root), "build")
     assert code == 0
     assert "ideas" not in out
