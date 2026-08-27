@@ -529,3 +529,82 @@ def test_cli_ideas_multiline_title_collapsed(make_project, tmp_path, cli):
     # multi-line title lands on exactly one listing line.
     assert len(lines) == 2  # group header + one idea line
     assert "first line second line" in lines[1]
+
+
+def _tree_nodes():
+    return [
+        {"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"},
+        {"id": "P2", "title": "P2", "type": "PHASE", "parent": "P1", "status": "IMPLEMENTING"},
+        {"id": "P2-A", "title": "P2-A", "type": "STRATEGY", "parent": "P2", "status": "READY"},
+    ]
+
+
+def test_cli_ideas_for_ancestor_match_with_via(make_project, tmp_path, cli):
+    raw = {"ideas/IDEA-1.yaml": "id: IDEA-1\ntitle: 挂在 P2 上\nstatus: OPEN\nrelates_to: [P2]\n"}
+    _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
+    assert code == 0
+    assert "IDEA-1" in out
+    assert "via: P2" in out  # matched through the ancestor, attributed
+
+
+def test_cli_ideas_for_self_match(make_project, tmp_path, cli):
+    raw = {"ideas/IDEA-1.yaml": "id: IDEA-1\ntitle: T\nstatus: OPEN\nrelates_to: [P2-A]\n"}
+    _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
+    assert code == 0
+    assert "via: P2-A" in out
+
+
+def test_cli_ideas_for_excludes_unrelated(make_project, tmp_path, cli):
+    raw = {"ideas/IDEA-1.yaml": "id: IDEA-1\ntitle: T\nstatus: OPEN\nrelates_to: [P2]\n"}
+    _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--for", "P1")  # P2 is a child, not an ancestor
+    assert (code, err) == (0, "")
+    assert out.strip() == "no matching ideas for node 'P1'"
+
+
+def test_cli_ideas_for_subtree_direction(make_project, tmp_path, cli):
+    """R1/B4: the ancestor direction cannot see ideas hung on children;
+    --subtree is what makes moment B executable."""
+    raw = {"ideas/IDEA-1.yaml": "id: IDEA-1\ntitle: T\nstatus: OPEN\nrelates_to: [P2-A]\n"}
+    _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
+    code, out, _ = cli("-p", str(root), "ideas", "--for", "P2")
+    assert "IDEA-1" not in out
+    code, out, _ = cli("-p", str(root), "ideas", "--for", "P2", "--subtree")
+    assert code == 0
+    assert "IDEA-1" in out
+    assert "via: P2-A" in out
+
+
+def test_cli_ideas_for_defaults_to_open_and_parked(make_project, tmp_path, cli):
+    raw = {
+        "ideas/A.yaml": "id: A\ntitle: T\nstatus: OPEN\nrelates_to: [P2]\n",
+        "ideas/B.yaml": "id: B\ntitle: T\nstatus: PARKED\nrelates_to: [P2]\n",
+        "ideas/C.yaml": "id: C\ntitle: T\nstatus: PROMOTED\nrelates_to: [P2]\n",
+        "ideas/D.yaml": "id: D\ntitle: T\nstatus: DISCARDED\nrelates_to: [P2]\n",
+    }
+    _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--for", "P2")
+    assert code == 0
+    ids = [line.split()[0] for line in out.splitlines() if not line.startswith("==")]
+    assert ids == ["A", "B"]  # IDEA-D62: --for defaults to OPEN + PARKED
+
+    code, out, err = cli("-p", str(root), "ideas", "--for", "P2", "--status", "DISCARDED")
+    assert code == 0
+    ids = [line.split()[0] for line in out.splitlines() if not line.startswith("==")]
+    assert ids == ["D"]  # explicit --status overrides the default filter
+
+
+def test_cli_ideas_subtree_requires_for(make_project, tmp_path, cli):
+    _project, root = make_project(tmp_path)
+    code, out, err = cli("-p", str(root), "ideas", "--subtree")
+    assert code == 2
+    assert "--subtree requires --for" in err
+
+
+def test_cli_ideas_for_unknown_node(make_project, tmp_path, cli):
+    _project, root = make_project(tmp_path)
+    code, out, err = cli("-p", str(root), "ideas", "--for", "NOPE")
+    assert code == 1
+    assert "unknown node 'NOPE'" in err
