@@ -56,7 +56,7 @@ def test_idea_status_namespace_does_not_collide_with_node_status():
 def test_ideas_page_strings_exist_in_both_locales():
     required = {
         "ideas.nav", "ideas.nav_label", "ideas.title", "ideas.subtitle",
-        "ideas.detail", "ideas.benchmark", "ideas.methodology",
+        "ideas.benchmark", "ideas.methodology",
         "ideas.relates_to", "ideas.outcome", "ideas.created", "ideas.updated",
         "ideas.no_sources", "ideas.unknown_node", "ideas.group_count",
     }
@@ -276,3 +276,65 @@ def test_build_with_ideas_is_deterministic(make_project, tmp_path):
     first = _build_with_ideas(make_project, tmp_path, name="det-a")
     second = _build_with_ideas(make_project, tmp_path, name="det-b")
     assert _page(first, "ideas.html") == _page(second, "ideas.html")
+
+
+# ------------------------------------ group-drop, unknown outcome, dedup
+
+
+def test_ideas_page_drops_empty_groups(make_project, tmp_path):
+    """A project whose only idea is OPEN renders exactly one group: groups
+    with no members are dropped rather than rendered empty."""
+    project, root = make_project(
+        tmp_path,
+        node_dicts=IDEA_NODES,
+        raw_files={"ideas/IDEA-0001.yaml": "id: IDEA-0001\ntitle: Only one\nstatus: OPEN\n"},
+    )
+    dist = root / ".planning" / "dist"
+    generator.build_site(project, dist)
+    page = _page(dist, "ideas.html")
+    assert re.findall(r'data-idea-group="([^"]+)"', page) == ["OPEN"]
+
+
+def test_ideas_page_renders_unknown_outcome_as_text(make_project, tmp_path):
+    """A PROMOTED idea whose outcome node does not exist keeps the id as
+    plain text and the note as text — the generator never fabricates a
+    link for a page it did not write."""
+    project, root = make_project(
+        tmp_path,
+        node_dicts=IDEA_NODES,
+        raw_files={
+            "ideas/IDEA-0042.yaml": (
+                "id: IDEA-0042\n"
+                "title: Graduated into a missing node\n"
+                "status: PROMOTED\n"
+                "outcome:\n"
+                "  node: NOSUCH\n"
+                "  note: graduation target vanished\n"
+            ),
+        },
+    )
+    dist = root / ".planning" / "dist"
+    generator.build_site(project, dist)
+    page = _page(dist, "ideas.html")
+    assert "NOSUCH" in page
+    assert 'href="nodes/NOSUCH.html"' not in page
+    assert "graduation target vanished" in page
+
+
+def test_ideas_page_dedupes_repeated_relates_to(make_project, tmp_path):
+    """``relates_to: [P2, P2]`` renders one link, not two."""
+    project, root = make_project(
+        tmp_path,
+        node_dicts=IDEA_NODES,
+        raw_files={
+            "ideas/IDEA-0009.yaml": (
+                "id: IDEA-0009\ntitle: Repeated relation\nstatus: OPEN\nrelates_to: [P2, P2]\n"
+            ),
+        },
+    )
+    dist = root / ".planning" / "dist"
+    generator.build_site(project, dist)
+    page = _page(dist, "ideas.html")
+    # `idea-node-link` appears only in the ideas content (the sidebar tree
+    # uses its own link classes), so a page-wide findall pins the card.
+    assert re.findall(r'class="idea-node-link" href="([^"]+)"', page) == ["nodes/P2.html"]

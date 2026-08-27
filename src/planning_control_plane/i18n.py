@@ -245,7 +245,6 @@ _EN: dict[str, str] = {
         "Uncommitted thinking. An idea reaches the planning graph only by graduating."
     ),
     "ideas.group_count": "{n}",
-    "ideas.detail": "Detail",
     "ideas.benchmark": "Benchmark sources",
     "ideas.methodology": "Methodology sources",
     "ideas.relates_to": "Born from",
@@ -394,7 +393,6 @@ _ZH_CN: dict[str, str] = {
     "ideas.title": "想法",
     "ideas.subtitle": "尚未承诺的思考。想法只能通过毕业进入规划图。",
     "ideas.group_count": "{n}",
-    "ideas.detail": "原文",
     "ideas.benchmark": "对标论据",
     "ideas.methodology": "方法论论据",
     "ideas.relates_to": "诞生上下文",

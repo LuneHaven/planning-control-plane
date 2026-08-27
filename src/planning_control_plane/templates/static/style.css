@@ -1857,7 +1857,8 @@ html[data-locale="en"] .badge-raw {
 
 .idea-node-link + .idea-node-link,
 .idea-node-link + .idea-node-missing,
-.idea-node-missing + .idea-node-link {
+.idea-node-missing + .idea-node-link,
+.idea-node-missing + .idea-node-missing {
   margin-left: 8px;
 }
 

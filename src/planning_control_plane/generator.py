@@ -61,6 +61,7 @@ from planning_control_plane.model import (
     NODE_ID_RE,
     Decision,
     Idea,
+    IdeaSource,
     IdeaStatus,
     NodeStatus,
     PCPError,
@@ -260,7 +261,7 @@ def _source_views(project: Project, paths: list[str]) -> list[dict]:
     ]
 
 
-def _idea_source_views(sources: list) -> list[dict]:
+def _idea_source_views(sources: list[IdeaSource]) -> list[dict]:
     """One justification slot as template rows (spec §52.2).
 
     ``ref`` renders as text, never as a link: it points into the *source*
@@ -277,19 +278,12 @@ def _idea_view(ctx: _Ctx, idea: Idea) -> dict:
     Node references go through :func:`_node_ref`, so a dangling
     ``relates_to`` or ``outcome.node`` renders as plain text with
     ``known=False`` — the generator never fabricates a link to a page it
-    did not write. The stored status string is projected defensively:
-    values outside :class:`IdeaStatus` keep their text and carry no
-    runtime translation key.
+    did not write.
     """
     return {
         "id": idea.id,
         "title": idea.title,
         "detail": idea.detail,
-        "status": {
-            "raw": idea.status,
-            "label": i18n.idea_status_label(ctx.locale, idea.status),
-            "i18n": i18n.idea_status_key(idea.status),
-        },
         "relates_to": _sorted_refs(ctx, list(dict.fromkeys(idea.relates_to))),
         "outcome": (
             {"ref": _node_ref(ctx, idea.outcome.node), "note": idea.outcome.note}
@@ -794,11 +788,11 @@ def build_site(project: Project, out_dir: Path) -> list[Path]:
 
     # Idea layer projection (spec §61). Conditional by IDEA-D63: no ideas
     # means no page and no sidebar entry, so a project that never adopted
-    # the idea layer keeps exactly the site it had before.
+    # the idea layer keeps exactly the site it had before. The page sits at
+    # the site root next to index.html, so it shares its context (prefix "").
     if project.ideas:
-        ideas_ctx = _Ctx(project=project, graph=graph, safe=safe, locale=locale, prefix="")
         written.append(
-            _write_text(out_dir / "ideas.html", env.get_template("ideas.html").render(**_ideas_context(ideas_ctx)))
+            _write_text(out_dir / "ideas.html", env.get_template("ideas.html").render(**_ideas_context(index_ctx)))
         )
 
     node_template = env.get_template("node.html")
