@@ -398,3 +398,76 @@ def test_idea_rules_stay_within_the_closed_set(make_project, tmp_path):
         assert issue.rule in IDEA_RULE_NAMES or issue.rule in {
             "current-focus-not-set",  # pre-existing project-level warning, unrelated
         }
+
+
+# ------------------------------------------------------------------ pcp ideas
+#
+# NOTE: the global -p/--project-root must precede the subcommand (argparse
+# hands everything after COMMAND to the subparser); same convention as
+# tests/test_cli.py.
+
+
+def test_cli_ideas_empty_state_exit_zero(make_project, tmp_path, cli):
+    _project, root = make_project(tmp_path)
+    code, out, err = cli("-p", str(root), "ideas")
+    assert (code, err) == (0, "")
+    assert out.strip() == "no ideas yet; add .planning/ideas/<id>.yaml"
+
+
+def test_cli_ideas_groups_and_d61_ordering(make_project, tmp_path, cli):
+    raw = {
+        "ideas/IDEA-A.yaml": "id: IDEA-A\ntitle: 无时间戳\nstatus: OPEN\n",
+        "ideas/IDEA-B.yaml": "id: IDEA-B\ntitle: 旧想法\nstatus: OPEN\nlast_updated: \"2026-01-01\"\n",
+        "ideas/IDEA-C.yaml": "id: IDEA-C\ntitle: 新想法\nstatus: OPEN\nlast_updated: \"2026-08-01\"\n",
+        "ideas/IDEA-D.yaml": "id: IDEA-D\ntitle: 搁置\nstatus: PARKED\nlast_updated: \"2026-02-01\"\n",
+    }
+    _project, root = make_project(tmp_path, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas")
+    assert code == 0
+    lines = out.splitlines()
+    assert lines[0] == "== OPEN (3) =="
+    assert lines[1].startswith("IDEA-B")   # oldest non-empty first: stale floats up
+    assert lines[2].startswith("IDEA-C")
+    assert lines[3].startswith("IDEA-A")   # empty last_updated sorts last (IDEA-D61)
+    assert lines[4] == "== PARKED (1) =="
+    assert lines[5].startswith("IDEA-D")
+    assert len(lines) == 6                 # empty groups are omitted entirely
+
+
+def test_cli_ideas_line_format(make_project, tmp_path, cli):
+    raw = {
+        "ideas/IDEA-B.yaml": (
+            "id: IDEA-B\ntitle: 对标驱动的视图改造\nstatus: OPEN\n"
+            "relates_to: [P1]\nlast_updated: \"2026-01-01\"\n"
+            "benchmark_sources:\n  - note: Grafana 对标\n"
+        )
+    }
+    _project, root = make_project(
+        tmp_path,
+        node_dicts=[{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}],
+        raw_files=raw,
+    )
+    code, out, err = cli("-p", str(root), "ideas")
+    assert code == 0
+    line = out.splitlines()[1]
+    assert line == "IDEA-B  2026-01-01  对标驱动的视图改造  relates: P1  benchmark:Y methodology:N"
+
+
+def test_cli_ideas_status_filter_repeatable(make_project, tmp_path, cli):
+    raw = {
+        "ideas/IDEA-A.yaml": "id: IDEA-A\ntitle: T\nstatus: OPEN\n",
+        "ideas/IDEA-D.yaml": "id: IDEA-D\ntitle: T\nstatus: PARKED\n",
+    }
+    _project, root = make_project(tmp_path, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--status", "PARKED")
+    assert code == 0
+    assert "IDEA-A" not in out and "IDEA-D" in out
+    code, out, err = cli("-p", str(root), "ideas", "--status", "OPEN", "--status", "PARKED")
+    assert "IDEA-A" in out and "IDEA-D" in out
+
+
+def test_cli_ideas_status_filter_no_match_exit_zero(make_project, tmp_path, cli):
+    _project, root = make_project(tmp_path, raw_files={"ideas/A.yaml": "id: IDEA-A\ntitle: T\nstatus: OPEN\n"})
+    code, out, err = cli("-p", str(root), "ideas", "--status", "DISCARDED")
+    assert (code, err) == (0, "")
+    assert out.strip() == "no ideas match the requested status filter"

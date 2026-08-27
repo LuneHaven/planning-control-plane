@@ -32,7 +32,16 @@ from planning_control_plane import context
 from planning_control_plane import generator
 from planning_control_plane import loader
 from planning_control_plane import validator
-from planning_control_plane.model import PCPError, PLANNING_DIR, Project, Severity
+from planning_control_plane.graph import PlanningGraph
+from planning_control_plane.model import (
+    IDEA_RULE_NAMES,
+    Idea,
+    IdeaStatus,
+    PCPError,
+    PLANNING_DIR,
+    Project,
+    Severity,
+)
 
 #: Exit code: command succeeded.
 EXIT_OK = 0
@@ -411,6 +420,112 @@ def cmd_focus(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+#: Display order of idea statuses in `pcp ideas` output (spec §60/IDEA-D51).
+_IDEA_STATUS_ORDER = (
+    IdeaStatus.OPEN.value,
+    IdeaStatus.PARKED.value,
+    IdeaStatus.PROMOTED.value,
+    IdeaStatus.DISCARDED.value,
+)
+
+
+def _idea_line(idea: Idea, via: list[str] | None) -> str:
+    """One deterministic listing line (spec §60/IDEA-D51): id, date, title,
+    relations, justification presence markers (IDEA-D22 — display, never
+    validation), and — in query mode — which node matched.
+
+    Columns are joined with two spaces; the two justification markers form
+    a single tighter column (``benchmark:Y methodology:N``), as pinned by
+    the line-format test."""
+    justification = (
+        "benchmark:" + ("Y" if idea.benchmark_sources else "N")
+        + " methodology:" + ("Y" if idea.methodology_sources else "N")
+    )
+    parts = [
+        idea.id,
+        idea.last_updated or "-",
+        _oneline(idea.title) or "-",
+        "relates: " + (", ".join(idea.relates_to) if idea.relates_to else "-"),
+        justification,
+    ]
+    if via is not None:
+        parts.append("via: " + (", ".join(via) if via else "-"))
+    return "  ".join(parts)
+
+
+def _idea_sort_key(idea: Idea) -> tuple[bool, str, str]:
+    """(empty flag, last_updated, id): oldest non-empty timestamp first so
+    stale ideas surface at the top of their group; entries with no
+    timestamp sort last (spec §60/IDEA-D61)."""
+    return (idea.last_updated == "", idea.last_updated, idea.id)
+
+
+def cmd_ideas(args: argparse.Namespace) -> int:
+    """``pcp ideas [--status ...] [--for NODE [--subtree]]`` — list the idea
+    layer (spec §60). Read-only: ideas are created and edited as YAML
+    files under .planning/ideas/ (files are the source, not the CLI)."""
+    project = _load_project(args)
+    if project is None:
+        return EXIT_USAGE
+
+    if args.subtree and args.node is None:
+        print("error: --subtree requires --for <node>", file=sys.stderr)
+        return EXIT_USAGE
+
+    if args.node is None:
+        selected: list[tuple[Idea, list[str] | None]] = [
+            (project.ideas[idea_id], None) for idea_id in sorted(project.ideas)
+        ]
+    else:
+        if args.node not in project.nodes:
+            print(f"error: unknown node '{args.node}'", file=sys.stderr)
+            return EXIT_FAILURE
+        graph = PlanningGraph(project)
+        if args.subtree:
+            scope = set(graph.subtree_ids(args.node))  # IDEA-D60: moment B, downward
+        else:
+            scope = {args.node, *graph.ancestors(args.node)}  # IDEA-D30: moment A, upward
+        selected = []
+        for idea_id in sorted(project.ideas):
+            idea = project.ideas[idea_id]
+            matched = [target for target in idea.relates_to if target in scope]
+            if matched:
+                selected.append((idea, matched))
+
+    if args.status:
+        wanted = set(args.status)
+    elif args.node is not None:
+        wanted = {IdeaStatus.OPEN.value, IdeaStatus.PARKED.value}  # IDEA-D62
+    else:
+        wanted = set(_IDEA_STATUS_ORDER)
+
+    groups: dict[str, list[tuple[Idea, list[str] | None]]] = {status: [] for status in _IDEA_STATUS_ORDER}
+    for idea, via in selected:
+        if idea.status in groups:
+            groups[idea.status].append((idea, via))
+
+    shown = 0
+    for status in _IDEA_STATUS_ORDER:
+        if status not in wanted:
+            continue
+        entries = sorted(groups[status], key=lambda pair: _idea_sort_key(pair[0]))
+        if not entries:
+            continue
+        print(f"== {status} ({len(entries)}) ==")
+        for idea, via in entries:
+            print(_idea_line(idea, via))
+        shown += len(entries)
+
+    if shown == 0:
+        if args.node is not None:
+            print(f"no matching ideas for node '{args.node}'" + (" (subtree)" if args.subtree else ""))
+        elif project.ideas:
+            print("no ideas match the requested status filter")
+        else:
+            print("no ideas yet; add .planning/ideas/<id>.yaml")
+    return EXIT_OK
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     """``pcp build [--check]`` — generate or verify the static site (spec §22/§23)."""
     project = _load_project(args)
@@ -552,6 +667,39 @@ def _build_parser() -> argparse.ArgumentParser:
         help="node id to focus on (omit to show the current focus)",
     )
     focus_parser.set_defaults(func=cmd_focus)
+
+    ideas_parser = subparsers.add_parser(
+        "ideas",
+        help="list captured ideas (the idea layer)",
+        description=(
+            "Read-only listing of .planning/ideas/*.yaml, grouped by "
+            "status. --for selects ideas whose relates_to hits a node or "
+            "one of its ancestors (decision-discussion view); adding "
+            "--subtree selects the node's subtree instead (closure view)."
+        ),
+    )
+    ideas_parser.add_argument(
+        "--status",
+        action="append",
+        choices=list(_IDEA_STATUS_ORDER),
+        metavar="STATUS",
+        help="restrict to one status (repeatable); default: all statuses, "
+        "or OPEN+PARKED when --for is given",
+    )
+    ideas_parser.add_argument(
+        "--for",
+        dest="node",
+        metavar="NODE",
+        help="only ideas whose relates_to hits NODE or one of NODE's "
+        "ancestors; with --subtree, any node in NODE's subtree instead",
+    )
+    ideas_parser.add_argument(
+        "--subtree",
+        action="store_true",
+        help="switch the --for direction from ancestors to the subtree "
+        "(requires --for)",
+    )
+    ideas_parser.set_defaults(func=cmd_ideas)
 
     build_parser = subparsers.add_parser(
         "build",
