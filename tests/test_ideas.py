@@ -180,3 +180,100 @@ def test_parse_idea_non_string_outcome_note_warns():
     idea = parse_idea({"id": "A", "title": "T", "outcome": {"node": "P2", "note": 7}}, None, issues)
     assert idea.outcome == IdeaOutcome(node="P2", note="")
     assert [(i.rule, i.severity) for i in issues] == [("invalid-idea-outcome", Severity.WARNING)]
+
+
+GOOD_IDEA = """\
+id: IDEA-0007
+title: 对标驱动的视图改造
+status: OPEN
+relates_to: [P1]
+last_updated: "2026-08-20"
+"""
+
+
+def test_no_ideas_dir_is_silent(make_project, tmp_path):
+    project, _root = make_project(tmp_path, node_dicts=[{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}])
+    assert project.ideas == {}
+    assert project.load_issues == []
+
+
+def test_idea_file_loaded_with_source_path(make_project, tmp_path):
+    project, _root = make_project(
+        tmp_path,
+        node_dicts=[{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}],
+        raw_files={"ideas/IDEA-0007.yaml": GOOD_IDEA},
+    )
+    idea = project.ideas["IDEA-0007"]
+    assert idea.title == "对标驱动的视图改造"
+    assert idea.relates_to == ["P1"]
+    assert idea.source_file == ".planning/ideas/IDEA-0007.yaml"
+    assert project.load_issues == []
+
+
+def test_broken_idea_yaml_never_bricks_the_project(make_project, tmp_path):
+    """IDEA-D58 / invariant §59.6: one broken idea file must not stop the
+    other ideas or any node from loading."""
+    project, _root = make_project(
+        tmp_path,
+        node_dicts=[{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}],
+        raw_files={
+            "ideas/IDEA-BROKEN.yaml": "id: [unclosed\n  bad indent",
+            "ideas/IDEA-0007.yaml": GOOD_IDEA,
+        },
+    )
+    assert "IDEA-0007" in project.ideas
+    assert "P1" in project.nodes
+    assert [i.rule for i in project.load_issues] == ["invalid-idea-file"]
+    assert project.load_issues[0].message.startswith("idea '.planning/ideas/IDEA-BROKEN.yaml': ")
+    assert project.load_issues[0].node_id is None
+
+
+def test_duplicate_keys_in_idea_file_are_an_issue_not_a_crash(make_project, tmp_path):
+    project, _root = make_project(
+        tmp_path,
+        raw_files={"ideas/IDEA-DUP.yaml": "id: IDEA-DUP\nid: IDEA-DUP\ntitle: T\n"},
+    )
+    assert project.ideas == {}
+    assert [i.rule for i in project.load_issues] == ["invalid-idea-file"]
+
+
+def test_parsable_non_mapping_is_invalid_idea_not_invalid_idea_file(make_project, tmp_path):
+    """R2 boundary: a file that parses but is not a mapping is an entry
+    problem (invalid-idea), not a read problem (invalid-idea-file)."""
+    project, _root = make_project(tmp_path, raw_files={"ideas/X.yaml": "- just\n- a list\n"})
+    assert [i.rule for i in project.load_issues] == ["invalid-idea"]
+
+
+def test_empty_idea_file_is_invalid_idea(make_project, tmp_path):
+    project, _root = make_project(tmp_path, raw_files={"ideas/EMPTY.yaml": ""})
+    assert project.ideas == {}
+    assert [i.rule for i in project.load_issues] == ["invalid-idea"]
+
+
+def test_duplicate_idea_id_keeps_first(make_project, tmp_path):
+    project, _root = make_project(
+        tmp_path,
+        raw_files={
+            "ideas/A.yaml": "id: IDEA-1\ntitle: First\n",
+            "ideas/B.yaml": "id: IDEA-1\ntitle: Second\n",
+        },
+    )
+    assert project.ideas["IDEA-1"].title == "First"
+    assert [i.rule for i in project.load_issues] == ["duplicate-idea-id"]
+
+
+def test_invalid_idea_id_charset_reported_but_kept(make_project, tmp_path):
+    project, _root = make_project(tmp_path, raw_files={"ideas/BAD.yaml": "id: \"bad id!\"\ntitle: T\n"})
+    assert [i.rule for i in project.load_issues] == ["invalid-idea-id"]
+    assert "bad id!" in project.ideas
+
+
+def test_nested_idea_file_warns(make_project, tmp_path):
+    project, _root = make_project(
+        tmp_path,
+        raw_files={
+            "ideas/IDEA-0007.yaml": GOOD_IDEA,
+            "ideas/archive/IDEA-OLD.yaml": "id: IDEA-OLD\ntitle: Old\n",
+        },
+    )
+    assert [i.rule for i in project.load_issues] == ["ignored-idea-file"]

@@ -175,6 +175,26 @@ def _read_yaml(path: Path) -> object:
         raise LoadError(f"cannot read {path}: {exc}") from exc
 
 
+def _read_idea_yaml(path: Path, rel: str, issues: list) -> tuple[bool, object]:
+    """Read one idea file tolerantly (spec §51.3.1 / IDEA-D58).
+
+    Unlike :func:`_read_yaml`, any read or parse failure — YAML syntax
+    errors, duplicate keys (``_UniqueKeyLoader`` raises on those), an
+    unreadable file — becomes an ``invalid-idea-file`` ERROR issue and the
+    file is skipped: an uncommitted thought must never brick the planning
+    data it decorates, so ideas never raise :class:`LoadError`. Returns
+    ``(False, None)`` when the file is skipped, ``(True, data)``
+    otherwise — *data* may still be ``None`` for an empty-but-valid file,
+    which :func:`parse_idea` reports as ``invalid-idea``.
+    """
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return True, yaml.load(handle, Loader=_UniqueKeyLoader)
+    except (yaml.YAMLError, OSError) as exc:
+        issues.append(idea_issue(Severity.ERROR, "invalid-idea-file", f"cannot read or parse ({exc})", rel))
+        return False, None
+
+
 def _issue(severity: Severity, rule: str, message: str, node_id: str | None = None):
     return ValidationIssue(severity=severity, rule=rule, message=message, node_id=node_id)
 
@@ -618,5 +638,61 @@ def load_project(root: Path) -> Project:
             )
             continue
         project.nodes[node.id] = node
+
+    # Idea layer (spec §51): one file per idea under ideas/, loaded with
+    # the same discipline as nodes but with failure-domain isolation — a
+    # broken idea file becomes an issue instead of a LoadError (IDEA-D58).
+    ideas_dir = planning_dir / IDEAS_DIR
+    if ideas_dir.is_dir():
+        loaded_ideas: set[Path] = set()
+        for idea_file in sorted(ideas_dir.glob("*.yaml")):
+            loaded_ideas.add(idea_file)
+            rel = f"{PLANNING_DIR}/{IDEAS_DIR}/{idea_file.name}"
+            ok, raw = _read_idea_yaml(idea_file, rel, issues)
+            if not ok:
+                continue
+            idea = parse_idea(raw, rel, issues)
+            if idea is None:
+                continue
+            if not NODE_ID_RE.match(idea.id):
+                issues.append(
+                    idea_issue(
+                        Severity.ERROR,
+                        "invalid-idea-id",
+                        f"idea id '{idea.id}' must match {NODE_ID_RE.pattern}",
+                        idea.id,
+                        idea.id,
+                    )
+                )
+            if idea.id in project.ideas:
+                existing = project.ideas[idea.id].source_file or "unknown"
+                issues.append(
+                    idea_issue(
+                        Severity.ERROR,
+                        "duplicate-idea-id",
+                        f"duplicate idea id '{idea.id}' (first defined in {existing}); keeping the first definition",
+                        idea.id,
+                        idea.id,
+                    )
+                )
+                continue
+            project.ideas[idea.id] = idea
+        # Mirror the nodes/ contract (spec §37.1): a YAML-ish file under
+        # ideas/ that is NOT read must never disappear silently.
+        for candidate in sorted(ideas_dir.rglob("*")):
+            if not candidate.is_file() or candidate in loaded_ideas:
+                continue
+            if candidate.suffix not in (".yaml", ".yml"):
+                continue
+            rel = f"{PLANNING_DIR}/{IDEAS_DIR}/{candidate.relative_to(ideas_dir).as_posix()}"
+            issues.append(
+                idea_issue(
+                    Severity.WARNING,
+                    "ignored-idea-file",
+                    f"'{rel}' is not loaded (only top-level *.yaml files are read); "
+                    "move it to the top level with a .yaml suffix so it joins the idea layer",
+                    rel,
+                )
+            )
 
     return project
