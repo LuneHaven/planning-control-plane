@@ -453,6 +453,17 @@ def test_cli_ideas_line_format(make_project, tmp_path, cli):
     assert line == "IDEA-B  2026-01-01  对标驱动的视图改造  relates: P1  benchmark:Y methodology:N"
 
 
+def test_cli_ideas_dedupes_repeated_relates_targets(make_project, tmp_path, cli):
+    nodes = [{"id": "P1", "title": "P1", "type": "PROGRAM", "status": "DONE"}]
+    raw = {"ideas/A.yaml": "id: A\ntitle: T\nstatus: OPEN\nrelates_to: [P1, P1]\n"}
+    _project, root = make_project(tmp_path, node_dicts=nodes, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--for", "P1")
+    assert code == 0
+    assert "relates: P1 " in out
+    assert out.rstrip().endswith("via: P1")
+    assert "P1, P1" not in out
+
+
 def test_cli_ideas_status_filter_repeatable(make_project, tmp_path, cli):
     raw = {
         "ideas/IDEA-A.yaml": "id: IDEA-A\ntitle: T\nstatus: OPEN\n",
@@ -502,6 +513,28 @@ def test_cli_ideas_no_note_for_valid_status_filtering(make_project, tmp_path, cl
     code, out, err = cli("-p", str(root), "ideas", "--status", "OPEN")
     assert code == 0
     assert "note:" not in out
+
+
+def test_cli_ideas_no_note_when_records_listed_despite_issues(make_project, tmp_path, cli):
+    """missing-idea-title still lists (title falls back to id) — no note."""
+    raw = {"ideas/A.yaml": "id: A\n"}  # missing title: listed, but load issue exists
+    _project, root = make_project(tmp_path, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas")
+    assert code == 0
+    assert " A " in out or out.splitlines()[1].startswith("A")
+    assert "note:" not in out
+
+
+def test_cli_ideas_duplicate_counts_as_hidden(make_project, tmp_path, cli):
+    raw = {
+        "ideas/A.yaml": "id: IDEA-1\ntitle: First\nstatus: OPEN\n",
+        "ideas/B.yaml": "id: IDEA-1\ntitle: Second\nstatus: OPEN\n",
+    }
+    _project, root = make_project(tmp_path, raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas")
+    assert code == 0
+    assert "First" in out and "Second" not in out
+    assert "note: 1 idea record(s) not shown" in out
 
 
 def test_cli_ideas_full_group_order_and_discarded(make_project, tmp_path, cli):

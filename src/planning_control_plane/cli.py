@@ -437,6 +437,9 @@ _IDEA_STATUS_ORDER = (
     IdeaStatus.DISCARDED.value,
 )
 
+#: Idea-layer load rules whose records never reach the listing (cli note).
+_HIDDEN_IDEA_RULES = frozenset({"invalid-idea-file", "invalid-idea", "duplicate-idea-id"})
+
 
 def _idea_line(idea: Idea, via: list[str] | None) -> str:
     """One deterministic listing line (spec §60/IDEA-D51): id, date, title,
@@ -454,11 +457,11 @@ def _idea_line(idea: Idea, via: list[str] | None) -> str:
         idea.id,
         idea.last_updated or "-",
         _oneline(idea.title) or "-",
-        "relates: " + (", ".join(idea.relates_to) if idea.relates_to else "-"),
+        "relates: " + (", ".join(dict.fromkeys(idea.relates_to)) if idea.relates_to else "-"),
         justification,
     ]
     if via is not None:
-        parts.append("via: " + (", ".join(via) if via else "-"))
+        parts.append("via: " + (", ".join(dict.fromkeys(via)) if via else "-"))
     return "  ".join(parts)
 
 
@@ -533,18 +536,21 @@ def cmd_ideas(args: argparse.Namespace) -> int:
         else:
             print("no ideas yet; add .planning/ideas/<id>.yaml")
 
-    # Records hidden from the listing must never vanish silently: unreadable
-    # files surface as idea-layer load issues, ideas with a validator-invalid
-    # status fall out of the fixed group order. Ordinary status filtering
-    # (valid statuses) never counts — the note is about data health, not
-    # display choice.
-    hidden = sum(1 for issue in project.load_issues if issue.rule in IDEA_RULE_NAMES) + sum(
+    # Records hidden from the listing must never vanish silently: unreadable,
+    # unusable or duplicate entries surface as idea-layer load issues whose
+    # records never reach the listing, and ideas with a validator-invalid
+    # status fall out of the fixed group order. Issues that leave the record
+    # listable (missing title, bad field/source/outcome values) do NOT count —
+    # the note only reports records genuinely absent. Ordinary status
+    # filtering (valid statuses) never counts either — the note is about data
+    # health, not display choice.
+    hidden = sum(1 for i in project.load_issues if i.rule in _HIDDEN_IDEA_RULES) + sum(
         1 for idea in project.ideas.values() if idea.status not in _IDEA_STATUS_ORDER
     )
     if hidden:
         print(
-            f"note: {hidden} idea record(s) not shown (invalid status or "
-            "unreadable file); run 'pcp validate'"
+            f"note: {hidden} idea record(s) not shown (broken or duplicate "
+            "entry, or invalid status); run 'pcp validate'"
         )
     return EXIT_OK
 

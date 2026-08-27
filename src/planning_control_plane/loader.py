@@ -5,7 +5,11 @@ malformed decision entries, unknown keys) are recorded as
 :class:`ValidationIssue` objects on the project instead of raising, so that
 ``pcp validate`` can report every problem in one pass. Only conditions that
 make loading meaningless (missing ``.planning``, unreadable YAML, missing
-``project.yaml``) raise :class:`LoadError`.
+``project.yaml``) raise :class:`LoadError`. The ``ideas/`` directory follows
+the same tolerant discipline with one failure-domain carve-out (IDEA-D58):
+a broken idea file becomes an ``invalid-idea-file`` issue and is skipped —
+idea loading never raises :class:`LoadError`, so an unpolished thought
+cannot block the planning data it decorates.
 """
 
 from __future__ import annotations
@@ -191,7 +195,7 @@ def _read_idea_yaml(path: Path, rel: str, issues: list) -> tuple[bool, object]:
         with path.open("r", encoding="utf-8") as handle:
             return True, yaml.load(handle, Loader=_UniqueKeyLoader)
     except (yaml.YAMLError, OSError, UnicodeDecodeError) as exc:
-        issues.append(idea_issue(Severity.ERROR, "invalid-idea-file", f"cannot read or parse ({exc})", rel))
+        issues.append(idea_issue(Severity.ERROR, "invalid-idea-file", f"cannot read or parse ({' '.join(str(exc).split())})", rel))
         return False, None
 
 
