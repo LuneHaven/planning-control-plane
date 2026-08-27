@@ -338,6 +338,17 @@ def test_idea_ref_escapes_repo(make_project, tmp_path, by_rule):
     assert [i.severity for i in by_rule(validate_project(project), "idea-source-escapes-repo")] == [Severity.ERROR]
 
 
+def test_idea_dotdot_ref_is_escape_error(make_project, tmp_path, by_rule):
+    """Spec §52.3 lexical half: a ../ ref escapes the repo even though it
+    is not absolute — ERROR, and never additionally reported missing."""
+    project, _root = _idea_project(
+        make_project, tmp_path, "id: IDEA-1\ntitle: T\nbenchmark_sources:\n  - ref: \"../outside.md\"\n"
+    )
+    issues = validate_project(project)
+    assert [i.severity for i in by_rule(issues, "idea-source-escapes-repo")] == [Severity.ERROR]
+    assert by_rule(issues, "idea-source-missing") == []
+
+
 def test_idea_ref_missing_warns(make_project, tmp_path, by_rule):
     project, _root = _idea_project(
         make_project, tmp_path, "id: IDEA-1\ntitle: T\nmethodology_sources:\n  - ref: docs/absent.md\n"

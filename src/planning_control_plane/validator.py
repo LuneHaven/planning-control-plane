@@ -206,6 +206,7 @@ def _check_ideas(project: Project, issues: list[ValidationIssue]) -> None:
     """Idea-layer rules (spec §58.1). Independent rule group: constrains
     ideas only, never feeds back into node rules (IDEA-D48)."""
     known_nodes = set(project.nodes)
+    root = Path(os.path.normpath(project.root))
     for idea_id in sorted(project.ideas):
         idea = project.ideas[idea_id]
 
@@ -246,7 +247,7 @@ def _check_ideas(project: Project, issues: list[ValidationIssue]) -> None:
         for key in ("benchmark_sources", "methodology_sources"):
             for entry in getattr(idea, key):
                 if entry.ref:
-                    _check_idea_reference(project.root, idea_id, key, entry.ref, issues)
+                    _check_idea_reference(root, idea_id, key, entry.ref, issues)
 
 
 def _check_idea_reference(root: Path, idea_id: str, key: str, path: str, issues: list[ValidationIssue]) -> None:
