@@ -545,7 +545,7 @@ def test_cli_ideas_for_ancestor_match_with_via(make_project, tmp_path, cli):
     code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
     assert code == 0
     assert "IDEA-1" in out
-    assert "via: P2" in out  # matched through the ancestor, attributed
+    assert out.rstrip().endswith("via: P2")  # matched through the ancestor, attributed
 
 
 def test_cli_ideas_for_self_match(make_project, tmp_path, cli):
@@ -553,7 +553,16 @@ def test_cli_ideas_for_self_match(make_project, tmp_path, cli):
     _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
     code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
     assert code == 0
-    assert "via: P2-A" in out
+    assert out.rstrip().endswith("via: P2-A")
+
+
+def test_cli_ideas_for_multi_target_via(make_project, tmp_path, cli):
+    """An idea touching several scope members attributes every match."""
+    raw = {"ideas/IDEA-1.yaml": "id: IDEA-1\ntitle: T\nstatus: OPEN\nrelates_to: [P2, P2-A]\n"}
+    _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
+    code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
+    assert code == 0
+    assert out.rstrip().endswith("via: P2, P2-A")
 
 
 def test_cli_ideas_for_excludes_unrelated(make_project, tmp_path, cli):
@@ -570,11 +579,19 @@ def test_cli_ideas_for_subtree_direction(make_project, tmp_path, cli):
     raw = {"ideas/IDEA-1.yaml": "id: IDEA-1\ntitle: T\nstatus: OPEN\nrelates_to: [P2-A]\n"}
     _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
     code, out, _ = cli("-p", str(root), "ideas", "--for", "P2")
+    assert code == 0
     assert "IDEA-1" not in out
     code, out, _ = cli("-p", str(root), "ideas", "--for", "P2", "--subtree")
     assert code == 0
     assert "IDEA-1" in out
-    assert "via: P2-A" in out
+    assert out.rstrip().endswith("via: P2-A")
+    # An idea hanging outside the subtree: exit 0 and the direction-suffixed
+    # no-match message (subtree mode never falls back to the plain wording).
+    (root / ".planning/ideas/IDEA-1.yaml").write_text(
+        "id: IDEA-1\ntitle: T\nstatus: OPEN\nrelates_to: [P1]\n", encoding="utf-8"
+    )
+    code, out, _ = cli("-p", str(root), "ideas", "--for", "P2", "--subtree")
+    assert (code, out.strip()) == (0, "no matching ideas for node 'P2' (subtree)")
 
 
 def test_cli_ideas_for_defaults_to_open_and_parked(make_project, tmp_path, cli):
