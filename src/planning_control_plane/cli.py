@@ -108,6 +108,16 @@ def _slugify(name: str) -> str:
     return slug or _DEFAULT_PROJECT_ID
 
 
+def _plain_scalar_round_trips(value: str) -> bool:
+    """Whether a plain (unquoted) rendering of *value* parses back to the
+    same string — refuses number/date/sequence look-alikes (``42``,
+    ``2026-08-28``, ``- item``) that YAML would load as another type."""
+    try:
+        return yaml.safe_load(value) == value
+    except yaml.YAMLError:
+        return False
+
+
 def _yaml_scalar(value: str) -> str:
     """Render *value* for the generated ``project.yaml``, quoting it when a
     plain rendering would not round-trip through the YAML parser."""
@@ -116,6 +126,7 @@ def _yaml_scalar(value: str) -> str:
         and value == value.strip()
         and value.lower() not in _YAML_KEYWORDS
         and not any(ch in _UNSAFE_PLAIN_YAML_CHARS for ch in value)
+        and _plain_scalar_round_trips(value)
     ):
         return value
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
@@ -748,8 +759,125 @@ def cmd_graduate(args: argparse.Namespace) -> int:
         print("error: --note must be a single line", file=sys.stderr)
         return EXIT_FAILURE
 
-    # --- write path (Task 3) -------------------------------------------
-    raise NotImplementedError("write path lands in Task 3")
+    idea_path = project.root / idea.source_file
+    node_path = project.root / node.source_file
+    try:
+        # newline="" on both ends: the edit must be line-oriented at the byte
+        # level too, so CRLF files keep their original endings throughout.
+        with idea_path.open("r", encoding="utf-8", newline="") as handle:
+            idea_text = handle.read()
+        with node_path.open("r", encoding="utf-8", newline="") as handle:
+            node_text = handle.read()
+    except OSError as exc:
+        print(f"error: cannot read the source files: {exc}", file=sys.stderr)
+        return EXIT_FAILURE
+
+    # IDEA-D34: transcribe every ref-carrying justification entry, in order
+    # of appearance, skipping refs the node already carries (a content
+    # copy, never a structural link — the node gains no idea knowledge).
+    refs: list[str] = []
+    for source in (*idea.benchmark_sources, *idea.methodology_sources):
+        if source.ref and source.ref not in refs:
+            refs.append(source.ref)
+    new_refs = [ref for ref in refs if ref not in node.evidence_sources]
+
+    outcome_lines = ["outcome:", f"  node: {_yaml_scalar(node.id)}"]
+    if args.note:
+        outcome_lines.append(f"  note: {_yaml_scalar(args.note)}")
+    try:
+        new_idea_text = _set_top_level_key(idea_text, "status", ["status: PROMOTED"])
+        new_idea_text = _set_top_level_key(new_idea_text, "outcome", outcome_lines)
+        new_node_text = (
+            _append_to_top_level_list(node_text, "evidence_sources", new_refs)
+            if new_refs
+            else node_text
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_FAILURE
+
+    def _restore() -> bool:
+        """Best-effort rollback. Returns True when both files match their
+        original content afterwards — whether by write-back or because a
+        file was never modified."""
+        for path, text in ((idea_path, idea_text), (node_path, node_text)):
+            try:
+                if path.read_bytes() != text.encode("utf-8"):
+                    path.write_text(text, encoding="utf-8", newline="")
+            except OSError:
+                return False  # best-effort rollback; the error below still reports
+        return True
+
+    try:
+        idea_path.write_text(new_idea_text, encoding="utf-8", newline="")
+        node_path.write_text(new_node_text, encoding="utf-8", newline="")
+    except OSError as exc:
+        if _restore():
+            print(
+                f"error: cannot write the graduation edits ({exc}); "
+                "both files were restored to their previous content",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"error: cannot write the graduation edits ({exc}); "
+                "the original files could not be fully restored — "
+                "check them (git diff) before retrying",
+                file=sys.stderr,
+            )
+        return EXIT_FAILURE
+
+    # Verify the written state by reloading the real files (IDEA-D35):
+    # anything short of the promised state rolls both files back.
+    try:
+        reloaded = loader.load_project(project.root)
+        check_idea = reloaded.ideas.get(idea.id)
+        check_node = reloaded.nodes.get(node.id)
+        ok = (
+            check_idea is not None
+            and check_idea.status == IdeaStatus.PROMOTED.value
+            and check_idea.outcome is not None
+            and check_idea.outcome.node == node.id
+            and check_node is not None
+            and all(ref in check_node.evidence_sources for ref in new_refs)
+            and (not args.note or check_idea.outcome.note == args.note.strip())
+        )
+    except loader.LoadError:
+        ok = False
+    if not ok:
+        if _restore():
+            print(
+                f"error: graduation verification failed for idea '{idea.id}'; "
+                "both files were restored to their previous content — "
+                "edit them manually",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"error: graduation verification failed for idea '{idea.id}'; "
+                "the original files could not be fully restored — "
+                "check them (git diff) and edit manually",
+                file=sys.stderr,
+            )
+        return EXIT_FAILURE
+
+    skipped = len(refs) - len(new_refs)
+    print(f"graduated: {idea.id} -> {node.id} ({idea.status} -> PROMOTED)")
+    if new_refs:
+        print(f"  evidence transcribed into {node.id}: " + ", ".join(new_refs))
+    elif refs:
+        print(
+            f"  evidence already present in {node.id} "
+            f"({len(refs)} ref(s), nothing to transcribe)"
+        )
+    else:
+        print("  no evidence refs to transcribe (note-only or empty justification slots)")
+    if skipped and new_refs:
+        print(f"  skipped {skipped} ref(s) already present")
+    print(f"  idea file: {idea.source_file}")
+    if new_refs:
+        print(f"  node file: {node.source_file}")
+    return EXIT_OK
 
 
 def cmd_build(args: argparse.Namespace) -> int:

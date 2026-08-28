@@ -220,3 +220,161 @@ def test_graduate_refuses_an_inline_roadmap_node(make_project, tmp_path, cli):
     code, _out, err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "R1")
     assert code == 1
     assert "standalone file" in err
+
+
+# ------------------------------------------------------ the write path
+
+
+def test_graduate_writes_both_files_and_preserves_author_text(make_project, tmp_path, cli):
+    _project, root = _graduate_project(make_project, tmp_path)
+    code, out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    assert "graduated: IDEA-0007 -> P2-A5 (OPEN -> PROMOTED)" in out
+
+    idea_text = (root / ".planning" / "ideas" / "IDEA-0007.yaml").read_text(encoding="utf-8")
+    assert "# captured thinking" in idea_text           # author comment survives
+    assert "status: PROMOTED" in idea_text
+    assert "outcome:\n  node: P2-A5" in idea_text
+    assert "outcome: ~" not in idea_text
+    assert "relates_to: [P2]" in idea_text              # untouched keys untouched
+
+    node_text = (root / ".planning" / "nodes" / "P2-A5.yaml").read_text(encoding="utf-8")
+    assert "# pilot target" in node_text
+    assert "objective: >" in node_text
+    assert node_text.count("  - docs/existing.md") == 1  # existing entry kept once
+    assert "  - docs/bench.md" in node_text
+    assert "  - docs/method.md" in node_text
+
+
+def test_graduate_output_names_transcribed_refs_and_files(make_project, tmp_path, cli):
+    _project, root = _graduate_project(make_project, tmp_path)
+    code, out, _err = cli(
+        "-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5",
+        "--note", "pilot is the evidence",
+    )
+    assert code == 0
+    assert "evidence transcribed into P2-A5: docs/bench.md, docs/method.md" in out
+    assert "idea file: .planning/ideas/IDEA-0007.yaml" in out
+    assert "node file: .planning/nodes/P2-A5.yaml" in out
+    idea_text = (root / ".planning" / "ideas" / "IDEA-0007.yaml").read_text(encoding="utf-8")
+    assert "  note: pilot is the evidence" in idea_text
+
+
+def test_graduate_without_note_writes_no_note_line(make_project, tmp_path, cli):
+    """The idea's own justification entries keep their note lines; what must
+    stay absent is a note inside the outcome block (asserted on the
+    reloaded model, not on raw text)."""
+    _project, root = _graduate_project(make_project, tmp_path)
+    code, _out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    from planning_control_plane.loader import load_project
+
+    project = load_project(root)
+    assert project.ideas["IDEA-0007"].outcome.note == ""
+
+
+def test_graduate_dedupes_refs_already_on_the_node(make_project, tmp_path, cli):
+    node_text = GRAD_NODE.replace(
+        "  - docs/existing.md", "  - docs/existing.md\n  - docs/bench.md"
+    )
+    _project, root = _graduate_project(make_project, tmp_path, node_text=node_text)
+    code, out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    node_new = (root / ".planning" / "nodes" / "P2-A5.yaml").read_text(encoding="utf-8")
+    assert node_new.count("docs/bench.md") == 1
+    assert "evidence transcribed into P2-A5: docs/method.md" in out
+    assert "skipped 1 ref(s) already present" in out
+
+
+def test_graduate_note_only_sources_leave_the_node_file_untouched(make_project, tmp_path, cli):
+    raw = GRAD_IDEA.replace(
+        "  - ref: docs/bench.md\n    note: Grafana time-compare\n",
+        "  - note: Grafana time-compare\n",
+    ).replace("  - ref: docs/method.md\n", "")
+    _project, root = _graduate_project(make_project, tmp_path, idea_text=raw)
+    node_file = root / ".planning" / "nodes" / "P2-A5.yaml"
+    before = node_file.read_text(encoding="utf-8")
+    code, out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    assert node_file.read_text(encoding="utf-8") == before
+    assert "no evidence refs to transcribe" in out
+
+
+def test_graduate_accepts_a_parked_idea(make_project, tmp_path, cli):
+    raw = GRAD_IDEA.replace("status: OPEN", "status: PARKED")
+    _project, root = _graduate_project(make_project, tmp_path, idea_text=raw)
+    code, out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    assert "(PARKED -> PROMOTED)" in out
+
+
+def test_graduate_result_validates_clean(make_project, tmp_path, cli):
+    """The written state is the state the spec promises: PROMOTED with a
+    reachable outcome — no ERROR, no outcome-without-promotion."""
+    _project, root = _graduate_project(make_project, tmp_path)
+    assert cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")[0] == 0
+    code, out, _err = cli("-p", str(root), "validate")
+    assert code == 0
+    assert "IDEA-0007" not in out
+
+
+def test_graduate_note_that_looks_like_a_yaml_scalar_round_trips(make_project, tmp_path, cli):
+    """`--note 42` must land as a string the loader keeps: an unquoted
+    scalar would reparse as an int and be silently dropped."""
+    _project, root = _graduate_project(make_project, tmp_path)
+    code, _out, _err = cli(
+        "-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5", "--note", "42"
+    )
+    assert code == 0
+    from planning_control_plane.loader import load_project
+
+    project = load_project(root)
+    assert project.ideas["IDEA-0007"].outcome.note == "42"
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file permissions")
+def test_graduate_restores_files_when_a_write_fails(make_project, tmp_path, cli):
+    """The idea file is written first; if the node write then fails, the
+    idea file must go back to its original content (IDEA-D35)."""
+    _project, root = _graduate_project(make_project, tmp_path)
+    idea_file = root / ".planning" / "ideas" / "IDEA-0007.yaml"
+    node_file = root / ".planning" / "nodes" / "P2-A5.yaml"
+    idea_before = idea_file.read_text(encoding="utf-8")
+    node_before = node_file.read_text(encoding="utf-8")
+    os.chmod(node_file, 0o444)
+    try:
+        code, _out, err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+        assert code == 1
+        assert "restored" in err
+    finally:
+        os.chmod(node_file, 0o644)
+    assert idea_file.read_text(encoding="utf-8") == idea_before
+    assert node_file.read_text(encoding="utf-8") == node_before
+
+
+def test_graduate_restores_files_when_reverification_fails(make_project, tmp_path, cli, monkeypatch):
+    """A reload that cannot even run counts as verification failure: both
+    files go back to their originals and the command exits 1."""
+    from planning_control_plane import loader as loader_module
+
+    _project, root = _graduate_project(make_project, tmp_path)
+    idea_file = root / ".planning" / "ideas" / "IDEA-0007.yaml"
+    node_file = root / ".planning" / "nodes" / "P2-A5.yaml"
+    idea_before = idea_file.read_text(encoding="utf-8")
+    node_before = node_file.read_text(encoding="utf-8")
+
+    real_load = loader_module.load_project
+    calls = {"count": 0}
+
+    def flaky_load(root_arg):
+        calls["count"] += 1
+        if calls["count"] > 1:
+            raise loader_module.LoadError("simulated unreadable project")
+        return real_load(root_arg)
+
+    monkeypatch.setattr(loader_module, "load_project", flaky_load)
+    code, _out, err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 1
+    assert "verification failed" in err
+    assert idea_file.read_text(encoding="utf-8") == idea_before
+    assert node_file.read_text(encoding="utf-8") == node_before
