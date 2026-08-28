@@ -652,6 +652,37 @@ def _idea_line(idea: Idea, via: list[str] | None) -> str:
 #: so the two never disagree (spec IDEA-D61, defined in model.py).
 _idea_sort_key = idea_sort_key
 
+#: Ids that participate in the next-free-id hint (spec INT-D18). Anchored on
+#: purpose: a substring match would count a legitimate id like MY-IDEA-0042-x.
+_IDEA_NUMBER_RE = re.compile(r"^IDEA-(\d+)$")
+
+
+def _next_free_idea_id(project: Project) -> str:
+    """Suggest the next unused ``IDEA-<NNNN>`` id (spec INT-D18).
+
+    The candidate set is the loaded idea ids UNION the top-level file names
+    under ``.planning/ideas/`` — including the ``.yml`` ones the loader
+    refuses to read. A file that failed to parse never reaches
+    ``project.ideas``, and this line's reader is usually an agent acting on
+    it: suggesting an id whose file already exists would tell it to
+    overwrite work the user has not repaired yet. Only top-level names are
+    considered; a file in a subdirectory cannot collide with a new one.
+    """
+    candidates = set(project.ideas)
+    ideas_dir = project.planning_dir() / loader.IDEAS_DIR
+    if ideas_dir.is_dir():
+        for pattern in ("*.yaml", "*.yml"):
+            for entry in ideas_dir.glob(pattern):
+                if entry.is_file():
+                    candidates.add(entry.stem)
+
+    highest = 0
+    for candidate in candidates:
+        match = _IDEA_NUMBER_RE.match(candidate)
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return f"IDEA-{highest + 1:04d}"
+
 
 def cmd_ideas(args: argparse.Namespace) -> int:
     """``pcp ideas [--status ...] [--for NODE [--subtree]]`` — list the idea
@@ -743,6 +774,10 @@ def cmd_ideas(args: argparse.Namespace) -> int:
             f"note: {hidden} idea record(s) not shown (broken or duplicate "
             "entry, or invalid status); run 'pcp validate'"
         )
+    # INT-D12: the closing line of every listing path that reached this far
+    # (including the all-files-broken one, which also exits 0). Advisory
+    # only — it hands the next cross-session capture a ready-made id.
+    print(f"next free id: {_next_free_idea_id(project)}")
     return EXIT_OK
 
 

@@ -411,7 +411,9 @@ def test_cli_ideas_empty_state_exit_zero(make_project, tmp_path, cli):
     _project, root = make_project(tmp_path)
     code, out, err = cli("-p", str(root), "ideas")
     assert (code, err) == (0, "")
-    assert out.strip() == "no ideas yet; add .planning/ideas/<id>.yaml"
+    lines = out.splitlines()
+    assert lines[0] == "no ideas yet; add .planning/ideas/<id>.yaml"
+    assert lines[-1] == "next free id: IDEA-0001"
 
 
 def test_cli_ideas_groups_and_d61_ordering(make_project, tmp_path, cli):
@@ -431,7 +433,8 @@ def test_cli_ideas_groups_and_d61_ordering(make_project, tmp_path, cli):
     assert lines[3].startswith("IDEA-A")   # empty last_updated sorts last (IDEA-D61)
     assert lines[4] == "== PARKED (1) =="
     assert lines[5].startswith("IDEA-D")
-    assert len(lines) == 6                 # empty groups are omitted entirely
+    assert len(lines) == 7                 # empty groups are omitted entirely
+    assert lines[6].startswith("next free id: ")
 
 
 def test_cli_ideas_line_format(make_project, tmp_path, cli):
@@ -460,7 +463,7 @@ def test_cli_ideas_dedupes_repeated_relates_targets(make_project, tmp_path, cli)
     code, out, err = cli("-p", str(root), "ideas", "--for", "P1")
     assert code == 0
     assert "relates: P1 " in out
-    assert out.rstrip().endswith("via: P1")
+    assert out.splitlines()[-2].endswith("via: P1")
     assert "P1, P1" not in out
 
 
@@ -481,7 +484,9 @@ def test_cli_ideas_status_filter_no_match_exit_zero(make_project, tmp_path, cli)
     _project, root = make_project(tmp_path, raw_files={"ideas/A.yaml": "id: IDEA-A\ntitle: T\nstatus: OPEN\n"})
     code, out, err = cli("-p", str(root), "ideas", "--status", "DISCARDED")
     assert (code, err) == (0, "")
-    assert out.strip() == "no ideas match the requested status filter"
+    lines = out.splitlines()
+    assert lines[0] == "no ideas match the requested status filter"
+    assert lines[-1] == "next free id: IDEA-0001"
 
 
 def test_cli_ideas_notes_hidden_invalid_status(make_project, tmp_path, cli):
@@ -562,7 +567,7 @@ def test_cli_ideas_multiline_title_collapsed(make_project, tmp_path, cli):
     lines = out.splitlines()
     # _oneline joins the block-scalar lines with single spaces: the whole
     # multi-line title lands on exactly one listing line.
-    assert len(lines) == 2  # group header + one idea line
+    assert len(lines) == 3  # group header + one idea line + next-free-id tail
     assert "first line second line" in lines[1]
 
 
@@ -580,7 +585,7 @@ def test_cli_ideas_for_ancestor_match_with_via(make_project, tmp_path, cli):
     code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
     assert code == 0
     assert "IDEA-1" in out
-    assert out.rstrip().endswith("via: P2")  # matched through the ancestor, attributed
+    assert out.splitlines()[-2].endswith("via: P2")  # matched through the ancestor, attributed
 
 
 def test_cli_ideas_for_self_match(make_project, tmp_path, cli):
@@ -588,7 +593,7 @@ def test_cli_ideas_for_self_match(make_project, tmp_path, cli):
     _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
     code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
     assert code == 0
-    assert out.rstrip().endswith("via: P2-A")
+    assert out.splitlines()[-2].endswith("via: P2-A")
 
 
 def test_cli_ideas_for_multi_target_via(make_project, tmp_path, cli):
@@ -597,7 +602,7 @@ def test_cli_ideas_for_multi_target_via(make_project, tmp_path, cli):
     _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
     code, out, err = cli("-p", str(root), "ideas", "--for", "P2-A")
     assert code == 0
-    assert out.rstrip().endswith("via: P2, P2-A")
+    assert out.splitlines()[-2].endswith("via: P2, P2-A")
 
 
 def test_cli_ideas_for_excludes_unrelated(make_project, tmp_path, cli):
@@ -605,7 +610,9 @@ def test_cli_ideas_for_excludes_unrelated(make_project, tmp_path, cli):
     _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
     code, out, err = cli("-p", str(root), "ideas", "--for", "P1")  # P2 is a child, not an ancestor
     assert (code, err) == (0, "")
-    assert out.strip() == "no matching ideas for node 'P1'"
+    lines = out.splitlines()
+    assert lines[0] == "no matching ideas for node 'P1'"
+    assert lines[-1] == "next free id: IDEA-0002"
 
 
 def test_cli_ideas_for_subtree_direction(make_project, tmp_path, cli):
@@ -619,14 +626,16 @@ def test_cli_ideas_for_subtree_direction(make_project, tmp_path, cli):
     code, out, _ = cli("-p", str(root), "ideas", "--for", "P2", "--subtree")
     assert code == 0
     assert "IDEA-1" in out
-    assert out.rstrip().endswith("via: P2-A")
+    assert out.splitlines()[-2].endswith("via: P2-A")
     # An idea hanging outside the subtree: exit 0 and the direction-suffixed
     # no-match message (subtree mode never falls back to the plain wording).
     (root / ".planning/ideas/IDEA-1.yaml").write_text(
         "id: IDEA-1\ntitle: T\nstatus: OPEN\nrelates_to: [P1]\n", encoding="utf-8"
     )
     code, out, _ = cli("-p", str(root), "ideas", "--for", "P2", "--subtree")
-    assert (code, out.strip()) == (0, "no matching ideas for node 'P2' (subtree)")
+    lines = out.splitlines()
+    assert (code, lines[0]) == (0, "no matching ideas for node 'P2' (subtree)")
+    assert lines[-1] == "next free id: IDEA-0002"
 
 
 def test_cli_ideas_for_defaults_to_open_and_parked(make_project, tmp_path, cli):
@@ -639,12 +648,20 @@ def test_cli_ideas_for_defaults_to_open_and_parked(make_project, tmp_path, cli):
     _project, root = make_project(tmp_path, node_dicts=_tree_nodes(), raw_files=raw)
     code, out, err = cli("-p", str(root), "ideas", "--for", "P2")
     assert code == 0
-    ids = [line.split()[0] for line in out.splitlines() if not line.startswith("==")]
+    ids = [
+        line.split()[0]
+        for line in out.splitlines()
+        if not line.startswith("==") and not line.startswith("next free id:")
+    ]
     assert ids == ["A", "B"]  # IDEA-D62: --for defaults to OPEN + PARKED
 
     code, out, err = cli("-p", str(root), "ideas", "--for", "P2", "--status", "DISCARDED")
     assert code == 0
-    ids = [line.split()[0] for line in out.splitlines() if not line.startswith("==")]
+    ids = [
+        line.split()[0]
+        for line in out.splitlines()
+        if not line.startswith("==") and not line.startswith("next free id:")
+    ]
     assert ids == ["D"]  # explicit --status overrides the default filter
 
 
