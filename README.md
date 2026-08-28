@@ -167,6 +167,7 @@ data sets, not translations of each other (see
 | `pcp context [node] [--full]` | Print the session resume capsule (default: the current focus) |
 | `pcp focus [node]` | Show or switch the current focus (line-oriented edit of `project.yaml`; comments preserved) |
 | `pcp ideas [--status S] [--for NODE [--subtree]]` | List the idea layer, grouped by status. `--for` selects ideas related to a node or its ancestors; `--subtree` switches to the node's subtree. Under `--for` without `--status`, only OPEN and PARKED are listed |
+| `pcp graduate IDEA --to NODE [--note TEXT]` | Graduate an idea: write `status: PROMOTED` + `outcome` into the idea file and copy its ref-carrying justification entries into the node's `evidence_sources` (comments preserved; the node must already exist; both files roll back on failure) |
 
 Global option: `-p/--project-root PATH` — target repository root (other
 commands search upward for `.planning/`).
@@ -206,8 +207,11 @@ Four properties are deliberate:
 - **Capture has no gate.** Empty justification slots are a valid state, and
   they produce no warning.
 - **One bridge.** An idea enters the planning graph only by graduating:
-  create the node, then point `outcome.node` at it. Nodes never reference
-  ideas back, so reading the plan never drags in unfinished thinking.
+  create the node, then point `outcome.node` at it — by hand, or with
+  `pcp graduate IDEA-0007 --to P2-A5`, which also copies the idea's
+  ref-carrying justification entries into the node's `evidence_sources`.
+  Nodes never reference ideas back, so reading the plan never drags in
+  unfinished thinking.
 - **Ideas cannot break the plan.** A malformed idea file becomes a
   validation issue and is skipped — `pcp status`, `pcp context` and
   `pcp build` keep working, and idea-layer errors never block a build.

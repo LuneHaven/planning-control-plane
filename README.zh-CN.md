@@ -153,6 +153,7 @@ pcp context       # 当前焦点的恢复 capsule
 | `pcp context [node] [--full]` | 输出会话恢复 capsule（默认当前焦点） |
 | `pcp focus [node]` | 查看或切换当前焦点（对 `project.yaml` 做行级编辑，保留注释） |
 | `pcp ideas [--status S] [--for NODE [--subtree]]` | 按状态分组列出想法层。`--for` 选出与某节点或其祖先相关的想法，`--subtree` 切换为该节点的子树方向。`--for` 不带 `--status` 时只列出 OPEN 与 PARKED |
+| `pcp graduate IDEA --to NODE [--note TEXT]` | 毕业一个想法：向想法文件写入 `status: PROMOTED` 与 `outcome`，并把带 `ref` 的论据条目复制进节点的 `evidence_sources`（保留注释；节点须已存在；失败时两文件回滚） |
 
 全局参数：`-p/--project-root PATH`——目标仓库根目录（其余命令从该目录
 向上查找 `.planning/`）。
@@ -190,8 +191,9 @@ last_updated: 2026-08-27
 
 - **捕获零门槛。** 论据槽全空是合法状态，不产生任何 WARNING。
 - **只有一座桥。** 想法进入规划图的唯一途径是毕业：先建节点，再把
-  `outcome.node` 指向它。节点永不反向引用想法，因此读计划不会牵扯到未完成的
-  思考。
+  `outcome.node` 指向它——手工编辑，或用 `pcp graduate IDEA-0007 --to P2-A5`，
+  后者还会把想法中带 `ref` 的论据条目复制进节点的 `evidence_sources`。
+  节点永不反向引用想法，因此读计划不会牵扯到未完成的思考。
 - **想法弄不坏计划。** 想法文件格式错误只会降级为一条校验 issue 并跳过该文件，
   `pcp status` / `pcp context` / `pcp build` 照常工作；想法层 ERROR 也不阻断构建。
 - **capsule 永不含想法。** `pcp context` 只携带规划数据；
