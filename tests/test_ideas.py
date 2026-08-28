@@ -33,8 +33,8 @@ def test_idea_source_and_default_outcome_shapes():
 
 
 def test_idea_rule_names_form_the_documented_closed_set():
-    # Spec §58.1: exactly these 18 rule names identify the idea layer
-    # (IDEA-D59 build gate, IDEA-D64 message prefix). Guards drift.
+    # Spec §58.1 + INT-D11: exactly these 19 rule names identify the idea
+    # layer (IDEA-D59 build gate, IDEA-D64 message prefix). Guards drift.
     assert IDEA_RULE_NAMES == frozenset(
         {
             "invalid-idea-file", "invalid-idea", "missing-idea-title",
@@ -44,7 +44,7 @@ def test_idea_rule_names_form_the_documented_closed_set():
             "promoted-without-outcome", "missing-outcome-target",
             "outcome-without-promotion", "idea-source-escapes-repo",
             "idea-source-missing", "idea-id-collides-with-node",
-            "idea-unknown-field",
+            "idea-unknown-field", "idea-filename-mismatch",
         }
     )
 

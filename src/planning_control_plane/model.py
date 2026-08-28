@@ -176,6 +176,7 @@ IDEA_RULE_NAMES = frozenset(
         "idea-source-missing",
         "idea-id-collides-with-node",
         "idea-unknown-field",
+        "idea-filename-mismatch",
     }
 )
 

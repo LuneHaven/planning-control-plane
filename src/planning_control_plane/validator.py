@@ -239,6 +239,26 @@ def _check_ideas(project: Project, issues: list[ValidationIssue]) -> None:
                 idea_issue(Severity.WARNING, "idea-id-collides-with-node", "idea id is also used by a planning node; consider renaming to avoid confusion", idea_id, idea_id)
             )
 
+        # INT-D11: IDEA-D6 fixes the file name as <id>.yaml, but nothing
+        # guarded it — a cross-session rename drifts silently. WARNING, not
+        # ERROR, and deliberately mirrors idea-id-collides-with-node: the id
+        # is the identity (IDEA-D14), the file name is only an index (D6).
+        # The loader reads top-level *.yaml only, so there is no .yml branch.
+        if idea.source_file:
+            stem = idea.source_file.rsplit("/", 1)[-1]
+            if stem.endswith(".yaml"):
+                stem = stem[: -len(".yaml")]
+            if stem != idea_id:
+                issues.append(
+                    idea_issue(
+                        Severity.WARNING,
+                        "idea-filename-mismatch",
+                        f"file name does not match the id; rename to '{idea_id}.yaml'",
+                        idea_id,
+                        idea_id,
+                    )
+                )
+
         if idea.unknown_fields:
             issues.append(
                 idea_issue(Severity.WARNING, "idea-unknown-field", f"unknown idea fields: {', '.join(idea.unknown_fields)}", idea_id, idea_id)
