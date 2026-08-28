@@ -30,6 +30,7 @@ from pathlib import Path, PurePath
 
 from planning_control_plane.graph import PlanningGraph
 from planning_control_plane.model import (
+    NODE_ID_RE,
     IdeaStatus,
     NodeStatus,
     NodeType,
@@ -244,7 +245,10 @@ def _check_ideas(project: Project, issues: list[ValidationIssue]) -> None:
         # ERROR, and deliberately mirrors idea-id-collides-with-node: the id
         # is the identity (IDEA-D14), the file name is only an index (D6).
         # The loader reads top-level *.yaml only, so there is no .yml branch.
-        if idea.source_file:
+        # NODE_ID_RE is what makes '<id>.yaml' a valid single path component;
+        # an id failing it already carries invalid-idea-id, and renaming to
+        # it would be unexecutable advice.
+        if idea.source_file and NODE_ID_RE.match(idea_id):
             stem = idea.source_file.rsplit("/", 1)[-1]
             if stem.endswith(".yaml"):
                 stem = stem[: -len(".yaml")]

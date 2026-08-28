@@ -34,6 +34,25 @@ def test_matching_filename_is_silent(make_project, tmp_path, by_rule):
     assert by_rule(validate_project(project), RULE) == []
 
 
+def test_dotted_id_strips_exactly_one_suffix(make_project, tmp_path, by_rule):
+    """IDEA-1.2 in IDEA-1.2.yaml is a match: only the trailing .yaml goes."""
+    project, _root = make_project(
+        tmp_path,
+        raw_files={"ideas/IDEA-1.2.yaml": "id: IDEA-1.2\ntitle: T\nstatus: OPEN\n"},
+    )
+    assert by_rule(validate_project(project), RULE) == []
+
+
+def test_invalid_id_gets_no_rename_advice(make_project, tmp_path, by_rule):
+    """An id failing NODE_ID_RE already carries invalid-idea-id; the rename
+    suggestion '<id>.yaml' would not be an executable file name."""
+    project, _root = make_project(
+        tmp_path,
+        raw_files={"ideas/ab.yaml": "id: a/b\ntitle: T\nstatus: OPEN\n"},
+    )
+    assert by_rule(validate_project(project), RULE) == []
+
+
 def test_comparison_is_case_sensitive(make_project, tmp_path, by_rule):
     """The id is the authority; a case-different file name is still a miss."""
     project, _root = make_project(
