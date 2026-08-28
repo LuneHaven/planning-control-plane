@@ -190,7 +190,7 @@ Two assets teach an AI coding harness when to reach for `pcp`:
    is the manual for the tool itself. One copy, several install locations:
 
    ```bash
-   # user level, shared across harnesses (ZCode and Codex scan ~/.agents/skills/)
+   # user level, shared across harnesses (ZCode scans ~/.agents/skills/)
    mkdir -p ~/.agents/skills/pcp
    curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
      -o ~/.agents/skills/pcp/SKILL.md

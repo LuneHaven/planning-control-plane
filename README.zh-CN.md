@@ -175,7 +175,7 @@ pcp context       # 当前焦点的恢复 capsule
    是工具本身的手册。一份内容，多个安装位置：
 
    ```bash
-   # 用户级，跨 harness 共享（ZCode 与 Codex 会扫描 ~/.agents/skills/）
+   # 用户级，跨 harness 共享（ZCode 会扫描 ~/.agents/skills/）
    mkdir -p ~/.agents/skills/pcp
    curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
      -o ~/.agents/skills/pcp/SKILL.md
