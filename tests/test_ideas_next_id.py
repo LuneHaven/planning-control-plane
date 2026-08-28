@@ -33,6 +33,18 @@ def test_highest_number_plus_one(make_project, tmp_path, cli):
     assert _tail(out) == TAIL + "IDEA-0008"
 
 
+def test_loaded_id_reserves_even_with_mismatched_filename(make_project, tmp_path, cli):
+    """The union's loaded-id arm in isolation: a well-formed idea whose file
+    name differs from its id (idea-filename-mismatch territory) still counts."""
+    _project, root = make_project(
+        tmp_path,
+        raw_files={"ideas/notes.yaml": "id: IDEA-0007\ntitle: T\nstatus: OPEN\n"},
+    )
+    code, out, _err = cli("-p", str(root), "ideas")
+    assert code == 0
+    assert _tail(out) == TAIL + "IDEA-0008"
+
+
 def test_unparsable_file_still_reserves_its_number(make_project, tmp_path, cli):
     """INT-D18: the data-safety clause. A file that failed to load never
     reaches project.ideas; suggesting its id would tell the reader — usually
