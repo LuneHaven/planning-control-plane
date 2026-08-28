@@ -9,12 +9,12 @@ transcripts.**
 
 ## Why PCP?
 
-**Planning Control Plane (PCP)** is a repository-native tool for maintaining
-long-running planning context across branches, decisions, implementation
-stages and AI sessions. It turns a planning process that used to live — and
-rot — inside long chat transcripts into a persistent **Planning Graph** in
-your repository, and projects it as a deterministic, offline static
-dashboard.
+**Planning Control Plane (PCP)** manages the planning process itself — its
+context and its progress. Planning data is stored as YAML in your
+repository: the outcomes of discussion are consolidated into a persistent
+**Planning Graph** that lives under version control, unaffected by session
+ends, branch switches or tool changes. `pcp build` projects this graph
+into a static dashboard — deterministic, fully offline, and disposable.
 
 Long planning conversations fail in a predictable way:
 
@@ -30,9 +30,9 @@ long planning conversations → context loss → decision drift → scope drift
   supposed to decide.
 
 A regular task tracker does not solve this, because the problem is not
-"who is doing what" — it is "where did the context and the boundaries of
-the discussion go". PCP manages the structure, progress and context of the
-planning process itself, not task assignment.
+"who is doing what?" — it is "where did the context and the boundaries of
+the discussion go?" PCP manages exactly that — not task assignment, not a
+Jira / Notion replacement.
 
 ## The Core Idea
 
@@ -40,14 +40,14 @@ planning process itself, not task assignment.
    lives in `.planning/` as plain YAML, committed with your repository.
    `pcp build` renders it into a disposable static site you can delete and
    regenerate at any time.
-2. **A tree with inherited memory.** Nodes form a planning tree
+2. **A tree that inherits earlier decisions.** Nodes form a planning tree
    (`PROGRAM → PHASE → STRATEGY → …`). Frozen decisions and scope
    boundaries made at a parent are *inherited and displayed* in every child
-   node, so they stay visible instead of being re-litigated.
-3. **Current Focus is always recoverable.** One node is the current focus.
-   `pcp context` emits a **Context Capsule** — a compact, self-contained
-   resume block you paste into a new AI session (or send to a teammate) to
-   continue exactly where you left off.
+   node, so they stay visible instead of being argued over again.
+3. **Current Focus is always recoverable.** At any moment, exactly one
+   node is the current focus. `pcp context` emits a **Context Capsule** — a
+   compact, self-contained resume block you paste into a new AI session (or
+   send to a teammate) to continue exactly where you left off.
 4. **Deterministic and offline.** Same planning source + same PCP version =
    byte-identical output. The generated site references no CDN, no remote
    fonts, no network at all; it works when opened directly via `file://`.
@@ -60,8 +60,9 @@ planning process itself, not task assignment.
   highlighted in the dashboard and the tree
 - **Frozen / Open / Blocking / Deferred Decisions** — categorized,
   inherited down the tree, never silently lost
-- **Scope Boundary** — explicit *in scope / out of scope* per node,
-  inherited from ancestors, shown on the page and in the capsule
+- **Scope Boundary** — explicit *in scope / out of scope* lists per node;
+  entries declared by ancestors are inherited and displayed, showing where
+  the boundary lies
 - **Three independent tracks** — discussion, writeback and implementation
   status are stored separately and never derived from each other
 - **Context Capsule** — `pcp context <node>` prints a paste-ready resume
@@ -70,11 +71,11 @@ planning process itself, not task assignment.
   with progressive disclosure
 - **Bilingual UI** — English and 简体中文, switchable at runtime in the
   browser
-- **Repository-native authority boundary** — PCP owns planning only; it
-  links to your canonical documents, never replaces them
-- **Idea layer** — `.planning/ideas/` captures uncommitted thinking with
-  benchmark and methodology justification slots; `pcp ideas` lists and
-  triages it, and a bad idea file can never block the plan
+- **Authority boundary** — PCP owns planning only; your canonical documents
+  stay yours, linked but never replaced
+- **Idea layer** — `.planning/ideas/` captures thinking that is not yet
+  committed; `pcp ideas` lists and filters it, and a malformed idea file
+  degrades to a single validation issue that never blocks the plan
 
 ## Installation
 
@@ -83,7 +84,7 @@ installs on many distributions are externally managed (PEP 668), so use a
 virtual environment:
 
 ```bash
-git clone https://github.com/LuneHaven/planning-control-plane.git planning-control-plane   # or download and extract the source
+git clone https://github.com/LuneHaven/planning-control-plane.git   # or download and extract the source
 cd planning-control-plane
 python3 -m venv .venv
 source .venv/bin/activate        # Windows PowerShell: .venv\Scripts\activate
@@ -148,12 +149,12 @@ pcp context       # the resume capsule for the current focus
 ```
 
 To explore a ready-made example instead, see
-[`examples/demo-project`](examples/demo-project) — a synthetic repository
-with a seven-node planning tree you can `pcp build` immediately. Its
-counterpart [`examples/demo-project-zh`](examples/demo-project-zh) is the
-same kind of scenario written in Chinese; the two are independent planning
-data sets, not translations of each other (see
-[Localization](#localization)).
+[`examples/demo-project`](examples/demo-project) — a fictional demo
+repository whose seven-node planning tree is ready to `pcp build`
+immediately. Its counterpart
+[`examples/demo-project-zh`](examples/demo-project-zh) is the same kind of
+scenario written in Chinese; the two are independent planning data sets, not
+translations of each other (see [Localization](#localization)).
 
 ## CLI
 
@@ -163,7 +164,7 @@ data sets, not translations of each other (see
 | `pcp agents` | Print a paste-ready AGENTS.md section teaching AI harnesses this repository's PCP workflow. Read-only — append it with `pcp agents >> AGENTS.md` |
 | `pcp validate` | Structural + planning-consistency validation, one issue per line (`ERROR`/`WARNING` + node + rule + reason) |
 | `pcp build` | Validate, then deterministically rebuild the HTML output directory |
-| `pcp build --check` | Regenerate in a temp dir and compare — drift detection for CI |
+| `pcp build --check` | Regenerate in a temp directory and compare, to detect stale output (for CI) |
 | `pcp status` | Terminal overview: project, current focus, decision counts, progress counts |
 | `pcp context [node] [--full]` | Print the session resume capsule (default: the current focus) |
 | `pcp focus [node]` | Show or switch the current focus (line-oriented edit of `project.yaml`; comments preserved) |
@@ -174,18 +175,19 @@ Global option: `-p/--project-root PATH` — target repository root (other
 commands search upward for `.planning/`).
 
 Exit codes: `0` success · `1` business failure (validation errors, unknown
-node, drift) · `2` usage/load error.
+node, stale output) · `2` usage/load error.
 
 ## AI Harness Integration
 
-Two assets teach an AI coding harness when to reach for `pcp`:
+Two assets tell an AI coding harness when to use `pcp`:
 
 1. **AGENTS.md section** — `pcp agents >> AGENTS.md`, once per repository. It
-   states the repository's own rules (document naming, the registration
-   convention) and the session workflow. AGENTS.md is the open standard most
-   harnesses read natively (Codex, Cursor, Gemini CLI, ZCode, …). Claude Code
-   is the exception — it reads `CLAUDE.md` only — so bridge it with a
-   `CLAUDE.md` whose sole content is `@AGENTS.md`.
+   records two kinds of content: the repository's own rules (document
+   naming, the registration convention) and the session workflow.
+   AGENTS.md is the open standard most harnesses read natively (Codex,
+   Cursor, Gemini CLI, ZCode, …). Claude Code is the exception — it reads
+   `CLAUDE.md` only — so bridge it with a `CLAUDE.md` whose sole content
+   is `@AGENTS.md`.
 2. **Skill** — [`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
    is the manual for the tool itself. One copy, several install locations:
 
@@ -204,14 +206,15 @@ Two assets teach an AI coding harness when to reach for `pcp`:
    harness asset, not part of the PCP runtime — runtime adapters and plugins
    remain out of scope (see Roadmap).
 
-The division is deliberate — repository rules live in `AGENTS.md` alone, the
-command manual lives in `SKILL.md` alone, so the two cannot drift apart.
+This division removes the duplication: repository rules are written only in
+`AGENTS.md` and the command manual only in `SKILL.md`, so there is nothing
+to keep in sync.
 
 ## Idea Layer
 
 Planning nodes are a *post-decision* control system: a node exists because
-something was already committed to. The idea layer holds what comes before
-that — captured thinking that has not earned a place in the plan yet.
+something was already committed to. The idea layer carries what comes
+before that — captured thinking that does not yet qualify for the plan.
 
 ```
 .planning/ideas/IDEA-0007.yaml     # one file per idea (directly under ideas/, .yaml suffix)
@@ -222,7 +225,7 @@ id: IDEA-0007
 title: Add a trend comparison view to the dashboard
 status: OPEN                       # OPEN | PARKED | PROMOTED | DISCARDED
 detail: One paragraph. Capture asks for no structure.
-relates_to: [P2]                   # the node this thought was born from
+relates_to: [P2]                   # planning nodes this idea touches
 benchmark_sources:                 # what mature products actually do
   - ref: docs/benchmarks/grafana-panels.md
     note: Grafana's time-compare panel shows the demand is stable
@@ -236,28 +239,30 @@ last_updated: 2026-08-27
 
 Four properties are deliberate:
 
-- **Capture has no gate.** Empty justification slots are a valid state, and
-  they produce no warning.
-- **One bridge.** An idea enters the planning graph only by graduating:
-  create the node, then point `outcome.node` at it — by hand, or with
-  `pcp graduate IDEA-0007 --to P2-A5`, which also copies the idea's
-  ref-carrying justification entries into the node's `evidence_sources`.
-  Nodes never reference ideas back, so reading the plan never drags in
-  unfinished thinking.
+- **Capture has no gate.** Empty `benchmark_sources` /
+  `methodology_sources` are a valid state, and produce no WARNING.
+- **A single entry point.** An idea enters the planning graph only by
+  graduating: create the node, then point the idea's `outcome.node` at that
+  node — by hand, or with `pcp graduate IDEA-0007 --to P2-A5`, which also
+  copies the idea's ref-carrying justification entries into the node's
+  `evidence_sources`. Nodes never reference ideas back, so reading the
+  plan never involves unfinished thinking.
 - **Ideas cannot break the plan.** A malformed idea file becomes a
   validation issue and is skipped — `pcp status`, `pcp context` and
   `pcp build` keep working, and idea-layer errors never block a build.
 - **Ideas are never in a capsule.** `pcp context` carries planning data
   only; `pcp ideas --for <node>` is the separate, deliberate second lookup.
 
-The generated site gets an `ideas.html` page and a sidebar entry — only
+The generated site gets an `ideas.html` page and a sidebar entry, but only
 when the project actually has ideas.
 
-`pcp validate` warns (`idea-filename-mismatch`) when an idea file's name does
-not match its `id` — the id is the identity, the file name is only an index,
-so it is advisory and never blocks. The last line of `pcp ideas` prints the
-next free `IDEA-<NNNN>`, computed from both loaded ids and the file names on
-disk, so it never points at a file that already exists.
+One rule runs through the idea layer: the `id` is the identity, the file
+name is only an index. Two consequences follow. When a file name does not
+match its `id`, `pcp validate` reports the `idea-filename-mismatch`
+WARNING — advisory, never blocking; rename the file to fix it. And the last
+line of `pcp ideas` prints the next free `IDEA-<NNNN>`, computed from both
+loaded ids and the file names on disk, so it never points at a file that
+already exists.
 
 ## Planning Model
 
@@ -275,8 +280,9 @@ disk, so it never points at a file that already exists.
   - *Open* — identified, not yet settled
   - *Blocking* — unresolved and preventing closure (`DONE` + blocking → validation ERROR)
   - *Deferred* — deliberately postponed
-- **Scope Boundary** — `scope` / `out_of_scope` lists per node; ancestor
-  entries are inherited and displayed as guardrails.
+- **Scope Boundary** — `scope` / `out_of_scope` lists per node; entries
+  declared by ancestors are inherited and displayed, showing where the
+  boundary lies.
 
 ## `.planning/` Structure
 
@@ -328,7 +334,7 @@ last_updated: 2026-08-17
 
 ![Node detail](docs/screenshots/node-en.png)
 
-- The **sidebar** owns the full planning tree — status, focus marker and
+- The **sidebar** carries the full planning tree — status, focus marker and
   expand/collapse included.
 - The **dashboard** answers four questions only: where are we (Current
   Focus), is anything blocked (Needs Attention), what is around the focus
@@ -337,14 +343,14 @@ last_updated: 2026-08-17
   (id, status, three tracks, Copy Context) → Next Action → Objective →
   Scope Boundary → decisions (Blocking → Open → Frozen, inherited groups
   collapsed per ancestor) → relations → sources → Resume This Work.
-- Details that would bury the essentials start collapsed (inherited frozen
-  decisions, deferred decisions, the full capsule) with counts always
-  visible.
+- Details that would obscure the essentials start collapsed (inherited
+  frozen decisions, deferred decisions, the full capsule) with counts
+  always visible.
 
 ## Context Recovery
 
-The **Context Capsule** is the bridge between the planning graph and your
-next working session:
+The **Context Capsule** hands the current state of the planning graph to
+your next working session:
 
 ```bash
 pcp context            # compact capsule for the current focus
@@ -353,10 +359,10 @@ pcp context --full     # adds ancestor summaries, relations, deferred decisions
 ```
 
 Paste the capsule into a new AI session as the opening context. It carries
-the node's objective, inherited frozen decisions, scope boundaries, open
-and blocking decisions, sources and track status — everything a fresh
-session needs and nothing it should not see. The node page's **Resume This
-Work** panel shows the same capsule with a copy button.
+only what a new session needs: the node's objective, inherited frozen
+decisions, scope boundaries, open and blocking decisions, sources and
+track status — and nothing else. The node page's **Resume This Work**
+panel shows the same capsule with a copy button.
 
 ## Recommended AI Agent Workflow
 
@@ -414,7 +420,7 @@ English demo viewed through a Chinese UI.
 | --- | --- | --- |
 | PCP engine | `src/planning_control_plane/` (this repository) | standalone pip-installed tool |
 | Planning data | `<your-repo>/.planning/{project.yaml, roadmap.yaml, nodes/}` | your repository |
-| Generated HTML | `<your-repo>/.planning/dist/` | disposable projection of the data |
+| Generated HTML | `<your-repo>/.planning/dist/` | your repository (disposable) |
 
 Modules: `model.py` (enums + data model) · `loader.py` (tolerant YAML
 loading) · `graph.py` (tree/graph operations) · `validator.py` (rules) ·
@@ -432,10 +438,10 @@ Every generated page states this in its footer.
 
 ## Current Status
 
-**Current release: V0.1.2.** V0.1.2 is a usable MVP validated through
-real-project dogfooding: the engine, CLI, validator, capsule and bilingual UI
-all work and are covered by an automated test suite (229 tests). PCP is **not
-yet published on PyPI** — install from source as shown above.
+**Current release: V0.1.2** — a usable MVP validated through real-project
+self-use: the engine, CLI, validator, capsule and bilingual UI all work, and
+the automated test suite has 409 tests. PCP is **not yet published on PyPI**
+— install from source as shown above.
 
 ## Roadmap
 
@@ -447,8 +453,7 @@ Named extension points reserved for later versions (no interfaces yet):
 `pcp prompt`, `pcp close`, `pcp reopen`, Git/GitHub adapters, Claude Code /
 Codex / ChatGPT adapters, multi-project workspace.
 
-V0.2 candidates — **candidate, not committed**; none of them is implemented
-and none is a promise:
+V0.2 candidates — none of them is implemented, and none is a promise:
 
 - close / reopen workflow
 - prompt generation
