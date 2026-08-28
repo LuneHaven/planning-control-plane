@@ -378,3 +378,71 @@ def test_graduate_restores_files_when_reverification_fails(make_project, tmp_pat
     assert "verification failed" in err
     assert idea_file.read_text(encoding="utf-8") == idea_before
     assert node_file.read_text(encoding="utf-8") == node_before
+
+
+# ------------------------------------------------- author file shapes
+
+
+def test_graduate_appends_outcome_when_the_key_is_absent(make_project, tmp_path, cli):
+    raw = GRAD_IDEA.replace("outcome: ~\n\n", "")
+    assert "outcome" not in raw
+    _project, root = _graduate_project(make_project, tmp_path, idea_text=raw)
+    code, _out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    idea_text = (root / ".planning" / "ideas" / "IDEA-0007.yaml").read_text(encoding="utf-8")
+    assert idea_text.count("outcome:") == 1
+    assert "outcome:\n  node: P2-A5" in idea_text
+
+
+def test_graduate_replaces_a_transition_state_outcome_block(make_project, tmp_path, cli):
+    """OPEN + outcome already set is the legal transition state (IDEA-D38
+    WARNING); graduation overwrites it instead of growing a second key."""
+    raw = GRAD_IDEA.replace(
+        "outcome: ~",
+        "outcome:\n  node: P2\n  note: node built, status flip pending",
+    )
+    _project, root = _graduate_project(make_project, tmp_path, idea_text=raw)
+    code, _out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    idea_text = (root / ".planning" / "ideas" / "IDEA-0007.yaml").read_text(encoding="utf-8")
+    assert idea_text.count("outcome:") == 1
+    assert "node: P2-A5" in idea_text
+    assert "status flip pending" not in idea_text
+
+
+def test_graduate_appends_status_when_the_key_is_absent(make_project, tmp_path, cli):
+    """An idea relying on the OPEN default has no status line; graduation
+    appends an explicit one (only absent keys fall back — same discipline
+    as the loader)."""
+    raw = GRAD_IDEA.replace("status: OPEN\n\n", "", 1)
+    assert "\nstatus:" not in raw
+    _project, root = _graduate_project(make_project, tmp_path, idea_text=raw)
+    code, _out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    from planning_control_plane.loader import load_project
+
+    project = load_project(root)
+    assert project.ideas["IDEA-0007"].status == "PROMOTED"
+    assert project.ideas["IDEA-0007"].outcome.node == "P2-A5"
+
+
+def test_graduate_preserves_crlf_author_files(make_project, tmp_path, cli):
+    _project, root = _graduate_project(make_project, tmp_path)
+    idea_file = root / ".planning" / "ideas" / "IDEA-0007.yaml"
+    node_file = root / ".planning" / "nodes" / "P2-A5.yaml"
+    idea_file.write_bytes(GRAD_IDEA.replace("\n", "\r\n").encode("utf-8"))
+    node_file.write_bytes(GRAD_NODE.replace("\n", "\r\n").encode("utf-8"))
+    code, _out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    assert b"status: PROMOTED\r\n" in idea_file.read_bytes()
+    assert b"  node: P2-A5\r\n" in idea_file.read_bytes()
+    assert b"  - docs/bench.md\r\n" in node_file.read_bytes()
+
+
+def test_graduate_note_must_be_a_single_line(make_project, tmp_path, cli):
+    _project, root = _graduate_project(make_project, tmp_path)
+    code, _out, err = cli(
+        "-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5", "--note", "two\nlines"
+    )
+    assert code == 1
+    assert "single line" in err
