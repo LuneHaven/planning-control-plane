@@ -160,13 +160,14 @@ data sets, not translations of each other (see
 | Command | What it does |
 | --- | --- |
 | `pcp init` | Create the `.planning/` skeleton; never overwrites existing files (`--force` only fills in missing files) |
+| `pcp agents` | Print a paste-ready AGENTS.md section teaching AI harnesses this repository's PCP workflow. Read-only — append it with `pcp agents >> AGENTS.md` |
 | `pcp validate` | Structural + planning-consistency validation, one issue per line (`ERROR`/`WARNING` + node + rule + reason) |
 | `pcp build` | Validate, then deterministically rebuild the HTML output directory |
 | `pcp build --check` | Regenerate in a temp dir and compare — drift detection for CI |
 | `pcp status` | Terminal overview: project, current focus, decision counts, progress counts |
 | `pcp context [node] [--full]` | Print the session resume capsule (default: the current focus) |
 | `pcp focus [node]` | Show or switch the current focus (line-oriented edit of `project.yaml`; comments preserved) |
-| `pcp ideas [--status S] [--for NODE [--subtree]]` | List the idea layer, grouped by status. `--for` selects ideas related to a node or its ancestors; `--subtree` switches to the node's subtree. Under `--for` without `--status`, only OPEN and PARKED are listed |
+| `pcp ideas [--status S] [--for NODE [--subtree]]` | List the idea layer, grouped by status. `--for` selects ideas related to a node or its ancestors; `--subtree` switches to the node's subtree. Under `--for` without `--status`, only OPEN and PARKED are listed. The last line prints the next free idea id |
 | `pcp graduate IDEA --to NODE [--note TEXT]` | Graduate an idea: write `status: PROMOTED` + `outcome` into the idea file and copy its ref-carrying justification entries into the node's `evidence_sources` (comments preserved; the node must already exist; both files roll back on failure) |
 
 Global option: `-p/--project-root PATH` — target repository root (other
@@ -174,6 +175,29 @@ commands search upward for `.planning/`).
 
 Exit codes: `0` success · `1` business failure (validation errors, unknown
 node, drift) · `2` usage/load error.
+
+## AI Harness Integration
+
+Two assets teach an AI coding harness when to reach for `pcp`:
+
+1. **AGENTS.md section** — `pcp agents >> AGENTS.md`, once per repository. It
+   states the repository's own rules (document naming, the registration
+   convention) and the session workflow.
+2. **Skill** — [`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
+   is the manual for the tool itself. Copy or symlink it into your harness's
+   skills directory:
+
+   ```bash
+   mkdir -p ~/.claude/skills/pcp
+   curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
+     -o ~/.claude/skills/pcp/SKILL.md
+   ```
+
+   The skill ships with the repository, not with the Python package: it is a
+   harness asset, not part of the PCP runtime.
+
+The division is deliberate — repository rules live in AGENTS.md alone, the
+command manual lives in SKILL.md alone, so the two cannot drift apart.
 
 ## Idea Layer
 
@@ -220,6 +244,12 @@ Four properties are deliberate:
 
 The generated site gets an `ideas.html` page and a sidebar entry — only
 when the project actually has ideas.
+
+`pcp validate` warns (`idea-filename-mismatch`) when an idea file's name does
+not match its `id` — the id is the identity, the file name is only an index,
+so it is a WARNING and never blocks. The last line of `pcp ideas` prints the
+next free `IDEA-<NNNN>`, computed from both loaded ids and the file names on
+disk, so it never points at a file that already exists.
 
 ## Planning Model
 

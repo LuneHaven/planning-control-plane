@@ -146,13 +146,14 @@ pcp context       # 当前焦点的恢复 capsule
 | 命令 | 作用 |
 | --- | --- |
 | `pcp init` | 生成 `.planning/` 骨架；绝不覆盖已有文件（`--force` 只补建缺失文件） |
+| `pcp agents` | 打印可直接粘贴的 AGENTS.md 段落，让 AI harness 知道本仓库的 PCP 工作流。只读——用 `pcp agents >> AGENTS.md` 自行追加 |
 | `pcp validate` | 结构 + 规划一致性校验，逐行输出（`ERROR`/`WARNING` + 节点 + 规则 + 原因） |
 | `pcp build` | 先校验，再确定性重建 HTML 输出目录 |
 | `pcp build --check` | 在临时目录重新生成并比对——CI 中的 drift 检测 |
 | `pcp status` | 终端概览：项目、当前焦点、决策计数、进度计数 |
 | `pcp context [node] [--full]` | 输出会话恢复 capsule（默认当前焦点） |
 | `pcp focus [node]` | 查看或切换当前焦点（对 `project.yaml` 做行级编辑，保留注释） |
-| `pcp ideas [--status S] [--for NODE [--subtree]]` | 按状态分组列出想法层。`--for` 选出与某节点或其祖先相关的想法，`--subtree` 切换为该节点的子树方向。`--for` 不带 `--status` 时只列出 OPEN 与 PARKED |
+| `pcp ideas [--status S] [--for NODE [--subtree]]` | 按状态分组列出想法层。`--for` 选出与某节点或其祖先相关的想法，`--subtree` 切换为该节点的子树方向。`--for` 不带 `--status` 时只列出 OPEN 与 PARKED。最后一行给出下一个可用的想法 id |
 | `pcp graduate IDEA --to NODE [--note TEXT]` | 毕业一个想法：向想法文件写入 `status: PROMOTED` 与 `outcome`，并把带 `ref` 的论据条目复制进节点的 `evidence_sources`（保留注释；节点须已存在；失败时两文件回滚） |
 
 全局参数：`-p/--project-root PATH`——目标仓库根目录（其余命令从该目录
@@ -160,6 +161,26 @@ pcp context       # 当前焦点的恢复 capsule
 
 退出码：`0` 成功 · `1` 业务失败（校验错误、未知节点、drift）·
 `2` 用法/加载错误。
+
+## AI Harness 集成
+
+两个资产让 AI coding harness 在正确时机想起调用 `pcp`：
+
+1. **AGENTS.md 段落**——每个仓库执行一次 `pcp agents >> AGENTS.md`。它写的是
+   这个仓库自己的规矩（文档命名、登记约定）与 session 工作流。
+2. **Skill**——[`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
+   是工具本身的手册。复制或链接到 harness 的 skills 目录：
+
+   ```bash
+   mkdir -p ~/.claude/skills/pcp
+   curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
+     -o ~/.claude/skills/pcp/SKILL.md
+   ```
+
+   Skill 随仓库分发，不随 Python 包分发：它是 harness 资产，不是 PCP 运行时的
+   一部分。
+
+分工是有意的——仓库规矩只在 AGENTS.md，命令手册只在 SKILL.md，两处不会漂移。
 
 ## 想法层
 
@@ -200,6 +221,11 @@ last_updated: 2026-08-27
   `pcp ideas --for <node>` 是另一次显式的、有意的查询。
 
 生成站点会多出 `ideas.html` 页与侧栏入口——仅当项目确实有想法时才出现。
+
+想法文件名与 `id` 不一致时，`pcp validate` 报 `idea-filename-mismatch`
+WARNING——id 是身份权威，文件名只是索引便利，因此不阻断。`pcp ideas` 的最后
+一行给出下一个可用的 `IDEA-<NNNN>`，编号同时参考已加载的 id 与磁盘上的文件名，
+不会指向一个已经存在的文件。
 
 ## 规划模型
 
