@@ -444,6 +444,12 @@ def cmd_init(args: argparse.Namespace) -> int:
         else:
             path.write_text(content, encoding="utf-8")
             print(f"created: {path}")
+    # INT-D14: the advisory snippet and the SKILL.md asset are worthless if
+    # nobody knows they exist. init is the one command every new project
+    # runs, so it carries the pointer. Output only — nothing extra is written.
+    print(
+        "next: run 'pcp agents >> AGENTS.md' to teach your AI harness about this project"
+    )
     return EXIT_OK
 
 

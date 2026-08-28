@@ -65,3 +65,25 @@ def test_agents_help_says_it_prints_an_agents_md_snippet():
     help_text = cli_module._build_parser().format_help()
     assert "agents" in help_text
     assert "AGENTS.md" in help_text
+
+
+def test_init_points_at_the_agents_command(cli, tmp_path):
+    """INT-D14: init is the only command a new project is guaranteed to run,
+    so it is the only natural bootstrap point for the advisory snippet."""
+    root = tmp_path / "fresh"
+    root.mkdir()
+    code, out, err = cli("-p", str(root), "init")
+    assert (code, err) == (0, "")
+    assert out.splitlines()[-1] == (
+        "next: run 'pcp agents >> AGENTS.md' to teach your AI harness about this project"
+    )
+
+
+def test_init_hint_does_not_write_anything_extra(cli, tmp_path):
+    """The hint is output only: the write surface stays init/focus/graduate."""
+    root = tmp_path / "fresh2"
+    root.mkdir()
+    code, _out, _err = cli("-p", str(root), "init")
+    assert code == 0
+    assert not (root / "AGENTS.md").exists()
+    assert sorted(p.name for p in root.iterdir()) == [".planning"]
