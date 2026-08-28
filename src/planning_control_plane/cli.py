@@ -6,7 +6,8 @@ formats plain terminal output (no colors).
 
 Implemented commands (spec §4): ``init`` (§5), ``validate`` (§16/§17),
 ``status`` (§18), ``context`` (§20/§21), ``focus`` (§19), ``ideas``
-(§60) and ``build`` / ``build --check`` (§22/§23).
+(§60), ``graduate`` (spec IDEA §55/§62.3) and ``build`` / ``build --check``
+(§22/§23).
 
 Exit codes:
 
@@ -663,6 +664,94 @@ def cmd_ideas(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_graduate(args: argparse.Namespace) -> int:
+    """``pcp graduate <idea-id> --to NODE [--note TEXT]`` — walk the
+    graduation bridge (spec §55, §62.3).
+
+    The idea layer's only write command. Sets ``status: PROMOTED`` and
+    ``outcome`` in the idea file, and transcribes the idea's ``ref``-carrying
+    justification entries into the target node's ``evidence_sources``
+    (IDEA-D34 — a content copy, never a structural link). The node must
+    already exist as its own file: PCP never authors planning semantics,
+    so node creation stays with the author. Both edits are line-oriented
+    so author comments and layout survive (the ``pcp focus`` discipline);
+    every refusal happens before the first byte is written, and a failed
+    post-write verification restores both original files (IDEA-D35).
+    """
+    project = _load_project(args)
+    if project is None:
+        return EXIT_USAGE
+
+    idea = project.ideas.get(args.idea_id)
+    if idea is None:
+        hint = (
+            f"; '{args.idea_id}' is a node id — graduate takes an idea id"
+            if args.idea_id in project.nodes
+            else "; run 'pcp ideas' to list idea ids"
+        )
+        print(f"error: unknown idea '{args.idea_id}'{hint}", file=sys.stderr)
+        return EXIT_FAILURE
+
+    if idea.status == IdeaStatus.PROMOTED.value:
+        outcome_now = idea.outcome.node if idea.outcome else "-"
+        print(
+            f"error: idea '{idea.id}' is already graduated (outcome: {outcome_now}); "
+            "post-graduation iteration starts a new idea file (spec §54.2), "
+            "never a re-graduation",
+            file=sys.stderr,
+        )
+        return EXIT_FAILURE
+    if idea.status == IdeaStatus.DISCARDED.value:
+        print(
+            f"error: idea '{idea.id}' is DISCARDED; revive it to OPEN first "
+            "(spec §53.2), then graduate",
+            file=sys.stderr,
+        )
+        return EXIT_FAILURE
+    if idea.status not in _IDEA_STATUS_ORDER:
+        print(
+            f"error: idea '{idea.id}' has invalid status '{idea.status}'; "
+            "run 'pcp validate'",
+            file=sys.stderr,
+        )
+        return EXIT_FAILURE
+
+    node = project.nodes.get(args.node)
+    if node is None:
+        hint = (
+            f"; '{args.node}' is an idea id — --to takes a node id"
+            if args.node in project.ideas
+            else ""
+        )
+        print(f"error: unknown node '{args.node}'{hint}", file=sys.stderr)
+        return EXIT_FAILURE
+
+    ideas_dir = project.planning_dir() / loader.IDEAS_DIR
+    nodes_dir = project.planning_dir() / loader.NODES_DIR
+    if idea.source_file is None or (project.root / idea.source_file).parent != ideas_dir:
+        print(
+            f"error: idea '{idea.id}' was not loaded from a file under "
+            f"{PLANNING_DIR}/{loader.IDEAS_DIR}/",
+            file=sys.stderr,
+        )
+        return EXIT_FAILURE
+    if node.source_file is None or (project.root / node.source_file).parent != nodes_dir:
+        print(
+            f"error: node '{node.id}' is not a standalone file under "
+            f"{PLANNING_DIR}/{loader.NODES_DIR}/ (inline roadmap node); "
+            "move it to its own file first",
+            file=sys.stderr,
+        )
+        return EXIT_FAILURE
+
+    if args.note and ("\n" in args.note or "\r" in args.note):
+        print("error: --note must be a single line", file=sys.stderr)
+        return EXIT_FAILURE
+
+    # --- write path (Task 3) -------------------------------------------
+    raise NotImplementedError("write path lands in Task 3")
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     """``pcp build [--check]`` — generate or verify the static site (spec §22/§23)."""
     project = _load_project(args)
@@ -847,6 +936,36 @@ def _build_parser() -> argparse.ArgumentParser:
         "(requires --for)",
     )
     ideas_parser.set_defaults(func=cmd_ideas)
+
+    graduate_parser = subparsers.add_parser(
+        "graduate",
+        help="graduate an idea into a planning node (the idea-layer write command)",
+        description=(
+            "Set status PROMOTED and outcome in the idea file, and copy the "
+            "idea's ref-carrying justification entries into the target "
+            "node's evidence_sources. The node must already exist as its "
+            "own file under .planning/nodes/ (PCP never authors planning "
+            "semantics). Line-oriented edits preserve comments and layout; "
+            "both files are restored if post-write verification fails."
+        ),
+    )
+    graduate_parser.add_argument(
+        "idea_id",
+        help="idea id to graduate (see 'pcp ideas')",
+    )
+    graduate_parser.add_argument(
+        "--to",
+        dest="node",
+        metavar="NODE",
+        required=True,
+        help="target node id (must exist as its own file under .planning/nodes/)",
+    )
+    graduate_parser.add_argument(
+        "--note",
+        default=None,
+        help="optional outcome note (single line)",
+    )
+    graduate_parser.set_defaults(func=cmd_graduate)
 
     build_parser = subparsers.add_parser(
         "build",
