@@ -1,6 +1,6 @@
 ---
 name: pcp
-description: Use when working in a repository that contains a .planning/ directory (managed by the Planning Control Plane CLI) - starting or resuming work, reading planning context, capturing or graduating an idea, validate planning data before wrapping up, or naming planning documents.
+description: Use when working in a repository that contains a .planning/ directory (managed by the Planning Control Plane CLI) - starting or resuming work, reading planning context, capturing or graduating an idea, validating planning data with pcp validate before wrapping up, or naming planning documents.
 ---
 
 # Planning Control Plane (`pcp`)
