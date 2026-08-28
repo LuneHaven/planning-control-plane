@@ -2,12 +2,12 @@
 
 | 项 | 值 |
 | --- | --- |
-| 状态 | **草案（Draft，待评审）**——尚未生效，尚无任何实现 |
+| 状态 | **草案（Draft，待评审）**——尚未合并主 spec；阶段 1–3 已按本草案实现（计划与执行记录见 docs/superpowers/plans/），仅 §62.3 的 `pcp close` 集成仍候 PLAN 世界 V0.2 |
 | 编号 | 章节暂用 §50–§62，需求 ID 暂用 `IDEA-D*`；合并主 spec 时统一重排（当前主 spec 已引用至 §43） |
 | 语言 | 草案以中文撰写，标识符/枚举/规则名保持英文原值；合并时的语言对齐待定 |
 | 依赖 | 对齐主 spec：§8（节点 schema）、§9/§10（受控枚举）、§12（stores, never judges）、§14（继承方向）、§16（校验协议）、§17（引用校验）、§20/§21（capsule）、§24（进度计数）、§37（数据为源，HTML 为投影） |
-| 关联 V0.2 候选 | `pcp graduate`、`pcp close` 集成、`CANCELLED` 终态（PLAN 世界，独立立项，见 §56.3） |
-| 修订 | R1：依据对现有实现（V0.1.2）的逐条核对结果修订，新增 `IDEA-D58`–`IDEA-D64`，改动清单与代码依据见附录 D。R2：三条 P3 措辞修正（规则边界互斥 / 前缀豁免 / 门禁判据），见附录 D.5。R3：阶段 2 实施发现的三条落地约束 + D.4 的 CI 触发条件标记，见附录 D.6。需求 ID 按新增顺序编号，与章节顺序无关，合并主 spec 时统一重排 |
+| 关联 V0.2 候选 | `pcp close` 集成、`CANCELLED` 终态（PLAN 世界，独立立项，见 §56.3）；`pcp graduate` 已于阶段 3 落地（R4，见附录 D.7） |
+| 修订 | R1：依据对现有实现（V0.1.2）的逐条核对结果修订，新增 `IDEA-D58`–`IDEA-D64`，改动清单与代码依据见附录 D。R2：三条 P3 措辞修正（规则边界互斥 / 前缀豁免 / 门禁判据），见附录 D.5。R3：阶段 2 实施发现的三条落地约束 + D.4 的 CI 触发条件标记，见附录 D.6。R4：阶段 3（`pcp graduate`）的实施契约，见附录 D.7。需求 ID 按新增顺序编号，与章节顺序无关，合并主 spec 时统一重排 |
 
 ---
 
@@ -352,8 +352,8 @@ N 想法 → 同一目标节点合法（合流）；outcome 目标不做唯一�
 ### 55.3 论据转录
 
 **IDEA-D34** 毕业时把想法论据索引中带 `ref` 的条目转录为目标节点的
-`evidence_sources`（机械动作，阶段 1 由手工完成；`pcp graduate` 为已命名未承诺
-的扩展点，见 §62.3）。转录是内容复制，不是结构链接——节点侧依旧零字段。
+`evidence_sources`（机械动作；阶段 1–2 手工完成，阶段 3 起由 `pcp graduate`
+自动执行；见 §62.3 与附录 D.7）。转录是内容复制，不是结构链接——节点侧依旧零字段。
 
 ### 55.4 原子性与失败模式
 
@@ -534,8 +534,9 @@ IDEA-D15 允许想法 id 与节点 id 撞号，该判据两头都会误判。
 
 ## §60 CLI 面
 
-**IDEA-D50** 新增只读子命令（写入面维持极小：想法的创建/编辑/毕业均为手工编辑
-YAML，与"文件即源、仅 init/focus 写文件"的既有哲学一致）：
+**IDEA-D50** 想法层子命令（写入面维持极小：`ideas` 只读；想法的创建/编辑为手工
+编辑 YAML；毕业自阶段 3 起可由 `pcp graduate` 代写两处编辑——与 `init`/`focus`
+同级的第三条写命令，见附录 D.7）：
 
 ```
 pcp ideas [--status OPEN|PARKED|PROMOTED|DISCARDED]    # 按状态分组列表（默认：全部状态）
@@ -607,7 +608,7 @@ created/last_updated。
 | --- | --- | --- |
 | 1（引擎） | model（Idea/IdeaStatus/Project.ideas）+ loader（ideas/，含 IDEA-D58）+ validator（§58 规则组）+ `pcp ideas`（两个查询方向）+ 测试 | 既有 229 测试全绿；不变量 1/2/3/5/6 成立；不变量 4 按**阶段 1 口径**（字节级不变）成立；必须有失败域用例：存在一个坏 YAML 想法文件时，`pcp status` / `pcp context` / `pcp build` 仍成功 |
 | 2（投影） | generator/templates（ideas 页 + 侧栏入口，均按 IDEA-D63 条件化）+ i18n ×2 + README en/zh 更新 | 确定性构建；无想法项目按不变量 4 的**阶段 2 口径**验收（结构与可见内容不变、无新页面与新入口、仅 i18n payload 增量） |
-| 3（扩展点，命名但未承诺） | `pcp graduate`（原子毕业+转录）、`pcp close` 集成（时刻 B 制度化） | 与 V0.2 候选合流评审 |
+| 3（扩展点，原"命名但未承诺"；`graduate` 已于 R4 落地） | `pcp graduate`（原子毕业+转录）已交付；`pcp close` 集成（时刻 B 制度化）仍候 PLAN 世界 | graduate 验收见 R4；close 集成与 V0.2 候选合流评审 |
 
 ### 62.2 模块影响面
 
@@ -620,12 +621,13 @@ created/last_updated。
 | `context.py` | **零改动** | 不变量 1 的物理保证 |
 | `generator.py` + `templates/` | +ideas 页、+侧栏入口（均条件化） | IDEA-D54/D55/D63 |
 | `i18n.py` | +想法相关词条 ×2 locale | 语言不碰数据 |
-| `cli.py` | +`pcp ideas` 子命令（`--status` / `--for` / `--subtree`）、focus 与 context 提示、build 门禁排除想法层 ERROR | 只读（IDEA-D50）；门禁见 IDEA-D59 |
-| 测试 | +`test_ideas*.py` | 既有测试零修改 |
+| `cli.py` | +`pcp ideas` 子命令（`--status` / `--for` / `--subtree`）、+`pcp graduate` 写路径（行级手术 + 三段式原子性）、focus 与 context 提示、build 门禁排除想法层 ERROR | `ideas` 只读；`graduate` 为与 `init`/`focus` 同级的第三条写命令（IDEA-D50、附录 D.7）；门禁见 IDEA-D59 |
+| 测试 | +`test_ideas*.py`、+`test_graduate.py` | 既有测试零修改 |
 
-### 62.3 V0.2 候选关联（均未承诺）
+### 62.3 V0.2 候选关联
 
-- `pcp graduate`：毕业向导（两文件原子写 + 论据转录自动化）；
+- `pcp graduate`：毕业向导（两文件原子写 + 论据转录自动化）——阶段 3 已实现，
+  落地契约见附录 D.7；
 - `pcp close` / 时刻 B 集成 / `CANCELLED` 终态：PLAN 世界自身缺口（§56.3），
   与本补章解耦并行。
 
@@ -794,3 +796,13 @@ last_updated: 2026-08-27
 | 1 | 不变量 §59.4 阶段 2 的「允许的唯一差异是 i18n payload」补一条：`assets/style.css` 允许**只增不改**的想法层样式增量，且全部选择器须以 `.idea-` / `.ideas-` / `.sidebar-extra` 前缀命名 | `style.css` 是全站共享的单一静态资源，由 `build_site()` 逐字节复制进每个项目的 dist（`generator.py:81` 的 `_STATIC_FILES` + `generator.py:780-783` 的复制循环，docstring `generator.py:745` 明写 "copied verbatim"）。想法页与侧栏入口需要样式，而侧栏入口出现在有想法项目的**每一个**页面上（含节点页），因此样式必然作用到全站。选择器前缀约束使这些规则在无想法项目上不匹配任何元素——「页面结构与可见内容不变」的实质因此成立，字节层面则与 i18n payload 属同一类不可避免的共享资源增量。「只增不改」由两道闸合起来固定：`test_idea_css_cannot_restyle_pages_that_have_no_ideas`（新增规则不外溢——前缀 + 禁 at-rule）与 `test_idea_css_is_append_only_over_phase1`（既有规则不被改写——对 `main` 版 stylesheet 的字节前缀断言）。<br><br>**落选方案与否决理由**（照 R1 第 1 条的体例记全，以免后续评审重开同一条杠）：<br>① **条件化独立 `ideas.css`**——字面上最干净（不变量 4 一字不改），但要给 `_STATIC_FILES` 的无条件复制循环开洞、打破 `generator.py:745` "copied verbatim" 的建产线契约，使资产集合随项目而变。那是**主 spec §22 层面**的改动，本补章无权自行修改；用主 spec 的永久复杂度换补章的一行修订，方向反了。<br>② **样式内联进 `ideas.html`**——覆盖不到节点页：侧栏入口出自全站共享的 `base.html`，有想法项目的每个页面都渲染它。<br>③ **放弃侧栏入口、只从 dashboard 进**——既推翻 IDEA-D54，又**不消除冲突**：`ideas.html` 自身的样式照样要进 `style.css`，无想法项目的字节照样变。只有叠加方案 ② 才成立，等于两笔成本换免写一条修订 |
 | 2 | IDEA-D54 的「侧栏独立入口」明确为：位于侧栏规划树 `<nav>` 之后的独立 `<nav class="sidebar-extra">` 区段，条件化渲染 | 规划树 `<nav>` 内新增任何条目都会让想法进入侧栏规划树，与不变量 3 冲突 |
 | 3 | 记录阶段 2 的排序实现：`IDEA-D61` 的排序键实现为 `model.idea_sort_key()`，CLI 与 ideas 页共用同一函数 | 「CLI 与 ideas 页使用同一排序」若靠两处各写一遍，只能靠纪律维持；提到共享函数后由 `test_idea_sort_key_is_shared_by_cli_and_generator` 固定 |
+
+### D.7 修订记录 R4（阶段 3 实施：`pcp graduate`）
+
+| # | 改动 | 依据 |
+| --- | --- | --- |
+| 1 | `pcp graduate` v1 的契约：只接线**既有**目标节点（`--to NODE`），不代建节点 | 代建节点意味着代写规划语义（type/parent/objective/scope 均是作者决策，§55.1 的毕业形态选择权在作者）；保持写入面最小（IDEA-D50）。手动流程"先建节点、后登记出处"的顺序因此保留，其半途状态（节点已建、想法仍 OPEN）本就是 §55.4 认定的"无害不可见" |
+| 2 | 接受的源状态为 OPEN 与 PARKED；拒绝 PROMOTED（§54.2：毕业后迭代必须新建想法文件，不得重开终态）与 DISCARDED（§53.2：复活先回 OPEN，新证据先落盘再毕业）；非受控枚举值拒绝并指向 `pcp validate` | §53.2 迁移表是规范动作而非校验规则（不设迁移校验），命令作为 spec 原生工具按规范动作执行；PARKED→PROMOTED 虽不在表内，但 PARKED 是未承诺状态，直接毕业等价于"分诊结论：现在做"，不抹除任何历史 |
+| 3 | 写入方式为**行级 YAML 手术**（`_top_level_key_span` / `_set_top_level_key` / `_append_to_top_level_list`，均在 `cli.py`）：只替换目标键块，其余字节原样，作者注释与 CRLF 保留（沿用 `pcp focus` 先例）；`evidence_sources` 为 flow 写法（`[a, b]`）时**拒绝执行**并提示改为块写法 | 节点/想法文件是手工 YAML，任何整文件重写（yaml dump）都会摧毁注释与排版；flow 列表的机械追加无法保真，拒绝比猜更强 |
+| 4 | 原子性实现为三段式：全部拒绝判定先于首个字节写入；两文件写完后**重新加载真实文件**验证（PROMOTED + `outcome.node` + 证据已入列），失败则恢复两个原始文本；文件系统中途崩溃窗口仍存在，不劣于手工流程 | IDEA-D35 只承诺消除"可检出的半途状态"：pre-write 拒绝消除 `missing-outcome-target` 与状态违规，verify+restore 消除"写坏文件"；跨文件崩溃窗口由 git 承载（数据是源，§37） |
+| 5 | 转录目标必须是 `nodes/` 下的独立文件；`roadmap.yaml` 内联节点被拒绝（提示先移出） | 内联节点的 YAML 是列表中的一项，行级手术没有安全的锚点；且每节点一文件本就是仓库惯例（与 IDEA-D8 的同源理由：合并冲突线性） |
