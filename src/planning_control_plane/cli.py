@@ -4,8 +4,8 @@ Thin layer over the engine modules: every command loads the project through
 the frozen loader API, delegates to validator / context / generator, and
 formats plain terminal output (no colors).
 
-Implemented commands (spec §4): ``init`` (§5), ``validate`` (§16/§17),
-``status`` (§18), ``context`` (§20/§21), ``focus`` (§19), ``ideas``
+Implemented commands (spec §4): ``init`` (§5), ``agents`` (INT-D1), ``validate``
+(§16/§17), ``status`` (§18), ``context`` (§20/§21), ``focus`` (§19), ``ideas``
 (§60), ``graduate`` (spec IDEA §55/§62.3) and ``build`` / ``build --check``
 (§22/§23).
 
@@ -94,6 +94,71 @@ _UNSAFE_PLAIN_YAML_CHARS = frozenset(':#{}[]&*!|>' + "'\"%@`,")
 
 #: Plain words YAML 1.1 would parse as booleans or null instead of strings.
 _YAML_KEYWORDS = {"true", "false", "null", "yes", "no", "on", "off", "~"}
+
+#: Ready-to-paste AGENTS.md section printed by ``pcp agents`` (spec INT-D2,
+#: INT-D3). Static by design (INT-D4): no project id, no path interpolation
+#: — ``.planning/`` is a constant convention. The ``v1`` in the begin marker
+#: is a hook for a future staleness check; the format is fixed now because
+#: adding it later would mean editing every repository that already pasted
+#: the block.
+_AGENTS_SNIPPET = """\
+<!-- pcp:agents begin v1 -->
+## Planning Control Plane (PCP)
+
+This repository is managed by PCP. `.planning/` holds the planning data and is
+the single source of truth; `.planning/dist/` is a generated projection — never
+edit it by hand, run `pcp build` to regenerate it.
+
+**Session workflow**
+
+- Starting or resuming work: run `pcp context` first (pass a node id for a
+  specific node, `--full` for ancestors and dependency detail).
+- Overview: `pcp status` for the planning graph, `pcp ideas` for the idea layer.
+- Before wrapping up: run `pcp validate` and clear every ERROR. WARNINGs are
+  advisory and do not block.
+
+**Capturing an idea**
+
+Ideas are files, not a CLI write path: create `.planning/ideas/IDEA-<NNNN>.yaml`
+yourself. The next free id is printed on the last line of `pcp ideas`. Minimal
+skeleton:
+
+```yaml
+id: IDEA-0001
+title: One line — what the thought is
+status: OPEN               # OPEN | PARKED | PROMOTED | DISCARDED
+detail: |
+  Free text. Why this might matter, what is still open.
+relates_to: []             # planning node ids this thought touches
+benchmark_sources: []      # - ref: docs/some-note.md   (repo-relative)
+methodology_sources: []    # - note: free text, for anything outside the repo
+created: 2026-01-01
+last_updated: 2026-01-01
+```
+
+Keep `relates_to` even when empty: without it the idea hangs off no node and
+`pcp ideas --for <node>` will never surface it.
+
+**Graduating an idea**
+
+`pcp graduate <idea-id> --to <node-id> [--note TEXT]` sets `status: PROMOTED`
+plus `outcome` on the idea and copies its ref-carrying justification entries
+into the node's `evidence_sources`. The target node must already exist under
+`.planning/nodes/` — PCP never authors planning semantics for you.
+
+**Naming planning documents**
+
+One-shot artifacts (plans, research notes, session records): `YYYY-MM-DD-<slug>.md`.
+Long-lived specs keep a stable slug instead (`<topic>-spec.md`) — a spec is
+revised for months, so a birth date in its name misleads the reader.
+
+**Registration convention**
+
+When a spec or plan lands, put its repository-relative path into the matching
+idea's `benchmark_sources` / `methodology_sources` as a `ref`. `pcp ideas` then
+shows which thoughts already have a spec or a plan behind them.
+<!-- pcp:agents end -->
+"""
 
 
 # --------------------------------------------------------------------------
@@ -931,6 +996,18 @@ def cmd_build(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_agents(args: argparse.Namespace) -> int:
+    """``pcp agents`` — print the AGENTS.md advisory snippet (spec INT-D1).
+
+    Read-only by construction: no project is loaded and no file is written,
+    AGENTS.md included. That file is a repository-level file owned by the
+    user and sits outside the ``.planning`` data plane, so PCP prints and
+    the user pastes (``pcp agents >> AGENTS.md`` is the one-liner).
+    """
+    print(_AGENTS_SNIPPET, end="")
+    return EXIT_OK
+
+
 # --------------------------------------------------------------------------
 # parser wiring
 # --------------------------------------------------------------------------
@@ -970,6 +1047,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="create missing files even when .planning/project.yaml already exists",
     )
     init_parser.set_defaults(func=cmd_init)
+
+    agents_parser = subparsers.add_parser(
+        "agents",
+        help="print an AGENTS.md snippet that teaches AI harnesses this repository's PCP workflow",
+        description=(
+            "Print a ready-to-paste AGENTS.md section, delimited by "
+            "<!-- pcp:agents begin v1 --> / <!-- pcp:agents end --> markers so "
+            "a later PCP version can replace the block in place. Read-only: "
+            "nothing is written, AGENTS.md included — append it yourself with "
+            "'pcp agents >> AGENTS.md'."
+        ),
+    )
+    agents_parser.set_defaults(func=cmd_agents)
 
     validate_parser = subparsers.add_parser(
         "validate",
