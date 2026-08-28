@@ -136,8 +136,8 @@ created: 2026-01-01
 last_updated: 2026-01-01
 ```
 
-Keep `relates_to` even when empty: without it the idea hangs off no node and
-`pcp ideas --for <node>` will never surface it.
+Fill `relates_to` with the node ids this thought touches: an idea with no entry
+there hangs off no node, and `pcp ideas --for <node>` will never surface it.
 
 **Graduating an idea**
 
