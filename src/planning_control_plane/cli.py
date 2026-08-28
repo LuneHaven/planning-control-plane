@@ -207,6 +207,105 @@ def _set_current_focus(text: str, node_id: str) -> str:
     return "".join(lines)
 
 
+def _default_eol(text: str) -> str:
+    """The file's dominant line ending, adopted by every line we generate."""
+    return "\r\n" if "\r\n" in text else "\n"
+
+
+def _top_level_key_span(lines: list[str], key: str) -> tuple[int, int] | None:
+    """Span ``[start, end)`` of a top-level ``key:`` block in *lines* (each
+    kept with its ending): the key line plus every following line that is
+    blank or indented (the key's value). ``None`` when the key is absent.
+
+    Only a column-0 ``key:`` line matches: an indented ``status:`` under
+    another key is value data, and a top-level comment line ends the block
+    (comments belong to the file, not to the key). Duplicate keys cannot
+    occur — the loader's ``_UniqueKeyLoader`` refuses them.
+    """
+    pattern = re.compile(rf"^{re.escape(key)}:(\s|#|$)")
+    start = None
+    for index, raw in enumerate(lines):
+        body = raw.rstrip("\r\n")
+        if body and not body[0].isspace() and pattern.match(body):
+            start = index
+            break
+    if start is None:
+        return None
+    end = start + 1
+    for index in range(start + 1, len(lines)):
+        body = lines[index].rstrip("\r\n")
+        if body and not body[0].isspace():
+            break
+        end = index + 1
+    return start, end
+
+
+def _set_top_level_key(text: str, key: str, rendered_lines: list[str]) -> str:
+    """Replace a top-level ``key:`` block — or append it when absent — with
+    *rendered_lines* (no endings yet; this function adds the file's dominant
+    EOL). Every other byte of the file survives untouched, so author
+    comments and layout live on (the ``pcp focus`` discipline).
+
+    Replacing a span may consume blank lines that sit inside it (directly
+    after the key): YAML validity and all other content are unaffected.
+    """
+    eol = _default_eol(text)
+    block = [line + eol for line in rendered_lines]
+    lines = text.splitlines(keepends=True)
+    span = _top_level_key_span(lines, key)
+    if span is None:
+        if text and not text.endswith(("\n", "\r\n")):
+            text += eol
+        return text + "".join(block)
+    start, end = span
+    lines[start:end] = block
+    return "".join(lines)
+
+
+def _append_to_top_level_list(text: str, key: str, items: list[str]) -> str:
+    """Append *items* to a top-level block list under *key*, creating the
+    key when absent. The existing value must be a block list (an empty
+    value counts); a flow list (``key: [a, b]``) or an explicit ``null``
+    raises :class:`ValueError` so the caller can refuse before touching
+    the file — appending to either cannot be done as a line edit without
+    guessing the author's formatting.
+
+    New items adopt the indent of the first existing ``- `` entry (two
+    spaces when the list is empty or null) and land after the last
+    non-blank line of the block.
+    """
+    eol = _default_eol(text)
+    lines = text.splitlines(keepends=True)
+    span = _top_level_key_span(lines, key)
+    if span is None:
+        if text and not text.endswith(("\n", "\r\n")):
+            text += eol
+        new = [key + ":" + eol] + [f"  - {_yaml_scalar(item)}{eol}" for item in items]
+        return text + "".join(new)
+    start, end = span
+    key_body = lines[start].rstrip("\r\n")
+    value = key_body[len(key) + 1 :].strip()
+    if value and not value.startswith("#"):
+        raise ValueError(
+            f"'{key}:' must use block list style (one '- item' per line) for "
+            f"automatic transcription; this file has '{key_body.strip()}' — "
+            "convert it to block style first"
+        )
+    insert_at = start
+    for index in range(start, end):
+        if lines[index].strip():
+            insert_at = index + 1
+    indent = "  "
+    for index in range(start + 1, end):
+        match = re.match(r"^(\s+)- ", lines[index].rstrip("\r\n"))
+        if match:
+            indent = match.group(1)
+            break
+    new = [f"{indent}- {_yaml_scalar(item)}{eol}" for item in items]
+    lines[insert_at:insert_at] = new
+    return "".join(lines)
+
+
 # --------------------------------------------------------------------------
 # command handlers (one per subcommand, each returns an exit code)
 # --------------------------------------------------------------------------
