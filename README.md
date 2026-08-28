@@ -182,16 +182,23 @@ Two assets teach an AI coding harness when to reach for `pcp`:
 
 1. **AGENTS.md section** — `pcp agents >> AGENTS.md`, once per repository. It
    states the repository's own rules (document naming, the registration
-   convention) and the session workflow.
+   convention) and the session workflow. AGENTS.md is the open standard most
+   harnesses read natively (Codex, Cursor, Gemini CLI, ZCode, …). Claude Code
+   is the exception — it reads `CLAUDE.md` only — so bridge it with a
+   `CLAUDE.md` whose sole content is `@AGENTS.md`.
 2. **Skill** — [`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
-   is the manual for the tool itself. Copy or symlink it into your harness's
-   skills directory:
+   is the manual for the tool itself. One copy, several install locations:
 
    ```bash
-   mkdir -p ~/.claude/skills/pcp
+   # user level, shared across harnesses (ZCode and Codex scan ~/.agents/skills/)
+   mkdir -p ~/.agents/skills/pcp
    curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
-     -o ~/.claude/skills/pcp/SKILL.md
+     -o ~/.agents/skills/pcp/SKILL.md
    ```
+
+   Claude Code does not scan `~/.agents/` — give it its own copy under
+   `~/.claude/skills/pcp/`. To share the skill with a team instead, commit it
+   into the repository at `.agents/skills/pcp/SKILL.md`.
 
    The skill ships with the repository, not with the Python package: it is a
    harness asset, not part of the PCP runtime — runtime adapters and plugins

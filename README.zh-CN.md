@@ -167,15 +167,22 @@ pcp context       # 当前焦点的恢复 capsule
 两个资产让 AI coding harness 在正确时机想起调用 `pcp`：
 
 1. **AGENTS.md 段落**——每个仓库执行一次 `pcp agents >> AGENTS.md`。它写的是
-   这个仓库自己的规则（文档命名、登记约定）与会话工作流。
+   这个仓库自己的规则（文档命名、登记约定）与会话工作流。AGENTS.md 是多数
+   harness 原生读取的开放标准（Codex、Cursor、Gemini CLI、ZCode……）；
+   Claude Code 是例外——只读 `CLAUDE.md`——用一行内容为 `@AGENTS.md` 的
+   CLAUDE.md 桥接即可。
 2. **Skill**——[`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
-   是工具本身的手册。复制或软链接到 harness 的 skills 目录：
+   是工具本身的手册。一份内容，多个安装位置：
 
    ```bash
-   mkdir -p ~/.claude/skills/pcp
+   # 用户级，跨 harness 共享（ZCode 与 Codex 会扫描 ~/.agents/skills/）
+   mkdir -p ~/.agents/skills/pcp
    curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
-     -o ~/.claude/skills/pcp/SKILL.md
+     -o ~/.agents/skills/pcp/SKILL.md
    ```
+
+   Claude Code 不扫描 `~/.agents/`——在 `~/.claude/skills/pcp/` 给它装自己的
+   副本。若要团队共享，则把 SKILL.md 提交到仓库的 `.agents/skills/pcp/`。
 
    Skill 随仓库分发，不随 Python 包分发：它是 harness 资产，不是 PCP 运行时的
    一部分——运行时适配器与插件仍不在范围内（见路线图）。
