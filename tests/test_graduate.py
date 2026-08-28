@@ -70,6 +70,12 @@ def test_append_to_top_level_list_refuses_flow_style():
         )
 
 
+def test_append_to_top_level_list_adopts_a_wider_indent():
+    text = "id: P1\nevidence_sources:\n    - docs/a.md\n"
+    out = cli_module._append_to_top_level_list(text, "evidence_sources", ["docs/b.md"])
+    assert out == "id: P1\nevidence_sources:\n    - docs/a.md\n    - docs/b.md\n"
+
+
 # ------------------------------------------------------------- fixtures
 
 
@@ -441,8 +447,42 @@ def test_graduate_preserves_crlf_author_files(make_project, tmp_path, cli):
 
 def test_graduate_note_must_be_a_single_line(make_project, tmp_path, cli):
     _project, root = _graduate_project(make_project, tmp_path)
+    idea_file = root / ".planning" / "ideas" / "IDEA-0007.yaml"
+    before = idea_file.read_text(encoding="utf-8")
     code, _out, err = cli(
         "-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5", "--note", "two\nlines"
     )
     assert code == 1
     assert "single line" in err
+    assert idea_file.read_text(encoding="utf-8") == before
+
+
+def test_graduate_refuses_a_flow_style_evidence_list(make_project, tmp_path, cli):
+    """R4 D.7 #3: a flow-style `evidence_sources: [a, b]` cannot take a
+    faithful mechanical append — refuse before the first byte is written."""
+    node_text = GRAD_NODE.replace(
+        "evidence_sources:\n  - docs/existing.md\n", "evidence_sources: [docs/existing.md]\n"
+    )
+    _project, root = _graduate_project(make_project, tmp_path, node_text=node_text)
+    idea_file = root / ".planning" / "ideas" / "IDEA-0007.yaml"
+    node_file = root / ".planning" / "nodes" / "P2-A5.yaml"
+    idea_before = idea_file.read_text(encoding="utf-8")
+    node_before = node_file.read_text(encoding="utf-8")
+    code, _out, err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 1
+    assert "block list style" in err
+    assert idea_file.read_text(encoding="utf-8") == idea_before
+    assert node_file.read_text(encoding="utf-8") == node_before
+
+
+def test_graduate_creates_a_missing_evidence_sources_key(make_project, tmp_path, cli):
+    """A node that never declared evidence_sources gains the key with the
+    transcribed refs (the unit-pinned append branch, end to end)."""
+    node_text = GRAD_NODE.replace("evidence_sources:\n  - docs/existing.md\n\n", "")
+    assert "evidence_sources" not in node_text
+    _project, root = _graduate_project(make_project, tmp_path, node_text=node_text)
+    code, _out, _err = cli("-p", str(root), "graduate", "IDEA-0007", "--to", "P2-A5")
+    assert code == 0
+    node_new = (root / ".planning" / "nodes" / "P2-A5.yaml").read_text(encoding="utf-8")
+    assert "  - docs/bench.md" in node_new
+    assert "  - docs/method.md" in node_new
