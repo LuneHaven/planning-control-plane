@@ -167,9 +167,9 @@ pcp context       # 当前焦点的恢复 capsule
 两个资产让 AI coding harness 在正确时机想起调用 `pcp`：
 
 1. **AGENTS.md 段落**——每个仓库执行一次 `pcp agents >> AGENTS.md`。它写的是
-   这个仓库自己的规矩（文档命名、登记约定）与 session 工作流。
+   这个仓库自己的规则（文档命名、登记约定）与会话工作流。
 2. **Skill**——[`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
-   是工具本身的手册。复制或链接到 harness 的 skills 目录：
+   是工具本身的手册。复制或软链接到 harness 的 skills 目录：
 
    ```bash
    mkdir -p ~/.claude/skills/pcp
@@ -178,9 +178,9 @@ pcp context       # 当前焦点的恢复 capsule
    ```
 
    Skill 随仓库分发，不随 Python 包分发：它是 harness 资产，不是 PCP 运行时的
-   一部分。
+   一部分——运行时适配器与插件仍不在范围内（见路线图）。
 
-分工是有意的——仓库规矩只在 AGENTS.md，命令手册只在 SKILL.md，两处不会漂移。
+分工是有意的——仓库规则只在 `AGENTS.md`，命令手册只在 `SKILL.md`，两处不会漂移。
 
 ## 想法层
 

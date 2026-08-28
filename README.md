@@ -194,10 +194,11 @@ Two assets teach an AI coding harness when to reach for `pcp`:
    ```
 
    The skill ships with the repository, not with the Python package: it is a
-   harness asset, not part of the PCP runtime.
+   harness asset, not part of the PCP runtime — runtime adapters and plugins
+   remain out of scope (see Roadmap).
 
-The division is deliberate — repository rules live in AGENTS.md alone, the
-command manual lives in SKILL.md alone, so the two cannot drift apart.
+The division is deliberate — repository rules live in `AGENTS.md` alone, the
+command manual lives in `SKILL.md` alone, so the two cannot drift apart.
 
 ## Idea Layer
 
@@ -247,7 +248,7 @@ when the project actually has ideas.
 
 `pcp validate` warns (`idea-filename-mismatch`) when an idea file's name does
 not match its `id` — the id is the identity, the file name is only an index,
-so it is a WARNING and never blocks. The last line of `pcp ideas` prints the
+so it is advisory and never blocks. The last line of `pcp ideas` prints the
 next free `IDEA-<NNNN>`, computed from both loaded ids and the file names on
 disk, so it never points at a file that already exists.
 
