@@ -1,0 +1,30 @@
+id: IDEA-0002
+title: 发布 planning-control-plane 到 PyPI
+status: OPEN
+detail: |
+  2026-09-01 评估：建议发布。动机：当前源码安装路径（clone + venv +
+  PEP 668 说明）是 README 最大的使用门槛，发布后可一行安装
+  （pipx / uv tool install）；名字 planning-control-plane 已确认未被
+  占用（pypi.org 返回 404，2026-09-01 查询），且 PyPI 名字只能靠首次
+  上传占用。包为纯 Python（PyYAML + Jinja2），发布风险低。
+
+  步骤（推荐 Trusted Publishing）：GitHub Actions +
+  pypa/gh-action-pypi-publish，PyPI 侧登记 trusted publisher，打 tag
+  自动构建上传；可先在 TestPyPI 演练。发布前：确认版本号来源
+  （pyproject version + git tag）、补 CHANGELOG、workflow 顺带跑 pytest。
+
+  注意：CLI 命令名 pcp 与 Performance Co-Pilot 的概念撞名（PyPI 的 pcp
+  包是它的绑定），实际 PATH 冲突风险低，接受。
+
+  进展（2026-09-01）：PyPI 账号已注册并开启 2FA；release workflow
+  （.github/workflows/release.yml，test → build → publish）与
+  CHANGELOG.md 已落地；版本定为 0.1.3（v0.1.2 tag 已推送，不可复用）。
+  待办：GitHub 建 pypi 环境 → PyPI 登记 pending publisher → 提交推送 →
+  打 v0.1.3 tag 触发发布 → 成功后改写两份 README 的安装节与
+  「尚未发布到 PyPI」表述。
+relates_to: []
+benchmark_sources: []
+methodology_sources:
+  - note: PyPI Trusted Publishing（OIDC）是 GitHub 项目现行标准发布方式，免 API token
+created: 2026-09-01
+last_updated: 2026-09-01

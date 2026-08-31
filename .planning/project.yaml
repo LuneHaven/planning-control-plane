@@ -1,0 +1,14 @@
+# Planning Control Plane — project configuration
+project:
+  id: planning-control-plane
+  name: planning-control-plane
+planning:
+  # 当前讨论焦点节点 id；用 'pcp focus <node-id>' 切换
+  current_focus: null
+authority:
+  # 可选：用于把链接分类为 canonical / current-state / planning
+  canonical_roots: []
+  current_state_roots: []
+  planning_roots: []
+output:
+  directory: .planning/dist
