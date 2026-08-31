@@ -42,6 +42,38 @@ detail: |
   尚未确认：本机只有 Chromium，无法实测 VoiceOver 的实际播报。上述
   WebKit 行为来自公开记录而非本仓库实测，落地前值得在真机 Safari 上
   确认一次，至少确认面包屑与 scope 两栏。
+  ── 实现进展（2026-09-01，已完成，选 A）─────────────────────────
+
+  选 A（逐个补 role="list"），436 项测试通过，视觉零变化。
+
+  实施时修正了本条原先的一个判断：原文说「要逐个判断哪些列表承载信息、
+  哪些纯装饰，例如 idea-sources 可能算装饰」。逐个看下来，这个项目里
+  没有一个装饰性列表——包括 idea-sources，「有几条来源支撑这个想法」
+  正是 ideas 页要回答的问题，而且它旁边没有 count 冗余。所以答案是
+  全部加，判断环节并不存在，A 的成本比预估低。
+
+  改动 23 处（侧栏两处此前已随 [[IDEA-0004]] 补过）：
+  - node.html 15 处：面包屑 <ol>、scope-list ×2、decision-list ×5、
+    ref-list ×5、source-list ×2
+  - index.html 5 处：ref-list ×3、branch-list ×2
+  - ideas.html 3 处：idea-list、idea-sources ×2
+
+  门禁改为全站兜底，而不是逐条断言：
+  - test_every_list_declares_its_list_role（index 与各 node 页）
+  - test_ideas_page_lists_declare_their_list_role（ideas 页，另一个
+    fixture，前者覆盖不到）
+  两者都是「页面里每个 <ul>/<ol> 都必须带 role=list」，不列白名单。
+  故意做成一刀切：这个缺陷完全不可见——渲染无差别、控制台无告警、其余
+  测试全绿，而屏幕阅读器那边列表的起止和序号已经没了。新增列表漏加会
+  在这里失败。摘掉一处 scope-list 的属性验证过，7 项测试转红。
+
+  未采纳 B（收窄全局重置）：需要重新核对每处视觉，且未来新增列表仍会
+  踩同一个坑，门禁也不好写。
+
+  仍未实测：本机只有 Chromium，Element.computedRole 不可用。WebKit 的
+  行为依据公开记录，建议在真机 Safari + VoiceOver 上确认一次，重点是
+  面包屑的层级深度与 scope 两栏的边界。
+
 relates_to: []
 benchmark_sources: []
 methodology_sources:
