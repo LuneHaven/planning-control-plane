@@ -1,0 +1,139 @@
+id: IDEA-0003
+title: 状态视觉编码退化：7 个状态共用形状、同族色肉眼不可分
+status: OPEN
+detail: |
+  2026-09-01 浏览器实测（examples/demo-project 与 demo-project-zh 构建后
+  逐页验证）：spec §13 承诺的「文字 + 形状 + 颜色」三重编码，在部分状态
+  上实际只剩文字一重。这是当前 HTML 页面唯一一处设计意图与实际渲染对不
+  上的地方；其余部分（sticky 侧栏布局、暗色 token 全覆盖、skip link、
+  aria-live 复制反馈、off-canvas inert、prefers-reduced-motion、无 JS
+  可用）实测都成立，不建议改动。
+
+  形状维度：i18n.py 的 _STATUS_SHAPES 里 11 个状态只用了 5 种字形，其中
+  7 个共用 ◐（DISCUSSING、INVESTIGATING、DECIDED、WRITEBACK_PENDING、
+  WRITEBACK_DONE、READY、IMPLEMENTING），形状不携带信息。
+
+  颜色维度：同族色距过近。浏览器 computed color 实测——
+  DISCUSSING 背景 rgb(223,233,251) / 前景 rgb(26,61,117)，
+  IMPLEMENTING 背景 rgb(221,234,248) / 前景 rgb(21,74,117)，
+  两者各通道差值均在个位数；READY (#dbf1e5 / #115c3f) 与
+  WRITEBACK_DONE (#deefe3 / #1c6436) 同样不可分。暗色模式同构
+  （#1f3352 vs #17324a、#16382b vs #1d3a26），不是浅色独有。
+
+  合并结果：DISCUSSING 与 IMPLEMENTING 渲染成同一个 badge，READY 与
+  WRITEBACK_DONE 也是。demo 项目里前一对同时存在，Recently Updated
+  表格中两行 badge 完全一样。文字标签保证信息不丢失，但侧栏树、
+  Recently Updated 这类需要一眼扫出状态分布的场景失效，必须逐条读
+  文字，代价随节点数线性增长。
+
+  方向（2026-09-01 已由下方探针结论定案，保留原始推理）：要做的是重新设计状态形状语言——给 11 个状态分配互相可区分的
+  形状，并拉开同族色距离；落地手段（SVG sprite 还是 Unicode 细分）是
+  第二步。只把 ◐ 换成 SVG 半圆而不重排语义，问题原样保留。SVG sprite
+  形状可控、顺带能解决 favicon，且构建时内联不破坏完全离线的约束；
+  Unicode 细分（◔◑◕◒）成本更低但上限更矮。替换点集中：i18n.py 的
+  _STATUS_SHAPES / _TRACK_SHAPES 两个字典，加模板里 4 处装饰字符
+  （node.html 的 ✓ ✕、index.html 的 ▲、base.html 的 ☰）。
+
+  已排除的一种猜测：◐ 并非字形缺失导致的 fallback。放大到 34px 截图
+  确认渲染为正常半圆。跨平台字形差异仍是真实风险，但不是当前痛点，
+  不足以单独构成改用 SVG 的理由。
+
+  建议同批打包的小修（均已实测复现，各为一行改动）：
+  1. favicon 缺失——dist/assets/ 只有 css 与 js，页面无 <link rel="icon">。
+     若走 SVG sprite 可顺带产出。注：另有「每页 console 一次 404」的说法，
+     在 file:// 下未能复现，缺 favicon 属实、报错未确认。
+  2. 窄屏顶栏按钮换行——style.css 的 .sidebar-toggle 缺 white-space:
+     nowrap。420px 下不复现（高 27px 单行），360px 折两行（42px）、
+     320px 折三行（57px）。触发点在 380px 以下，覆盖常见手机宽度。
+  3. Progress 面板 6 格排成 5+1——style.css 的 .stats 用
+     repeat(auto-fit, minmax(88px, 1fr))，1440px 下 Deferred 单独一行；
+     改 repeat(3, 1fr) 即可。
+
+  ── 2026-09-01 探针结论（浏览器实测，方案已定）──────────────────
+
+  结论：走 SVG sprite。Unicode 细分方案在本机就已经不成立，不是跨平台
+  推测的问题。
+
+  1. Unicode 细分不可行。按 style.css 的真实规格（16px、mono 栈）测量
+     字形墨迹尺寸：圆族 ○ ◐ ● ◑ ◕ 为 8×7 px，方/三角/菱形族
+     ▲ ◇ ▢ ▣ ▷ ▶ 为 10×10 px——视觉面积差约 78%。混族用必然大小不齐。
+     ◔ (U+25D4) 更极端，只有 8×5 px，放大到 22px 仍读不出是什么形状，
+     用它表示 DISCUSSING 直接不可行。根因是不同 Unicode 块的字符由字体
+     设计者按各自意图绘制，字体之间的处理还不一样。本机 DejaVu Sans
+     Mono 是覆盖最好的情况（候选字符全部命中），换 Consolas / SF Mono
+     只会更差。
+  2. SVG 可行。同一 viewBox 下形状大小与笔画粗细统一，11px 实际尺寸下
+     清晰，浅色与暗色都成立。形状语义按状态的三段结构分配：决策段用
+     圆环填充 1/4 → 1/2 → 3/4，回写段用方框与方框加对勾，执行段用空心
+     与实心右三角，终态为实心圆 / 实心上三角（警告）/ 虚线菱形。
+  3. 实现约束（新发现，会影响生成器）：sprite 必须内联进每个 HTML
+     页面。file:// 下外部 SVG 的 <use href="sprite.svg#id"> 被同源策略
+     拦截，实测 bbox=0、完全不渲染；同页内联的 bbox=27，正常。项目页面
+     要支持 file:// 直接打开，所以外部 sprite 不是选项。代价是每页多出
+     约 1.5KB 重复内容，本地文件无网络传输，可接受。
+  4. 配色修订已量化验证（CIE Lab ΔE76，浅色背景）：
+     DISCUSSING / IMPLEMENTING   2.4 → 13.5（IMPLEMENTING 蓝改 teal）
+     READY / WRITEBACK_DONE      1.8 → 13.4（WRITEBACK_DONE 绿改橄榄）
+     WRITEBACK_DONE / DONE       2.4 → 11.3
+     顺带查清一件事：这几对的前景色 ΔE 一直在 10–14，撞的一直是背景色。
+     badge 是小色块，背景占掉大部分视觉面积，所以背景撞了就等于撞了，
+     调前景色救不回来。
+  5. 仍未解决且决定接受：READY / DONE 背景 ΔE=2.3，本轮没动。两者形状
+     差异明确（空心右三角 vs 实心圆），而 SVG 保证了形状可靠——这个
+     取舍只有在形状维度恢复之后才成立。
+  6. 诚实评估：决策段三档圆环（1/4、1/2、3/4）在 9px 下是整套方案里最
+     弱的一环，仍主要靠颜色区分。但已从「7 个完全相同」变成「圆环族
+     3 档 + 其他族明确不同」，形状重新携带信息。实现时把 SVG 尺寸从
+     9px 提到 10px。
+  7. 未能验证：跨平台字形表现，只测了本机 Linux / DejaVu。这个限制本身
+     就是选 SVG 的论据——SVG 不依赖字体，没有这一类风险。
+
+  已评估并决定不动：ideas 页 .prose 的 pre-wrap。桌面宽度下实际是按源
+  换行折行加缩进对齐，右侧留白约 40%，可读性尚可；且节点页 capsule
+  依赖 pre-wrap，改动有连带风险。
+  ── 实现进展（2026-09-01，已完成）──────────────────────────────
+
+  已落地，419 项测试通过。改动：
+  - i18n.py: _STATUS_SHAPES / _TRACK_SHAPES 改为 _STATUS_SHAPE_IDS /
+    _TRACK_SHAPE_IDS，函数改名 status_shape_id / track_shape_id，返回
+    SVG symbol id 而非字符。autoescape 开着，所以这一层交出 id、不交
+    HTML，标记由模板负责。
+  - templates/_shapes.html（新增）: sprite 与 shape() macro。11 个状态
+    形状 + track 的 dash + unknown + 三个装饰图标（check / cross /
+    menu）。
+  - base.html / index.html / node.html: 14 处 shape span 与 4 处装饰
+    字符全部换成 macro 调用；sprite 由 base.html 内联进每一页。
+  - style.css: .shape 从字体规则改为 10px SVG 尺寸；两个撞色 token 按
+    上面的 ΔE 修订；尺寸变体（menu 13px、exception / scope 12px）必须
+    放在 .shape 基础规则之后——同特异性下靠源码顺序决胜，第一版把它们
+    写在各自组件旁边，结果被基础规则的 width 吃掉。
+  - docs/screenshots/ 五张图重拍（README 引用，旧图是旧形状与旧配色）。
+
+  两处偏离前面的探针设计：
+  1. WRITEBACK_DONE 原定「方框 + 对勾」，实现改为实心方块。对勾要靠
+     背景色反白才看得见，而 badge 背景是主题变量，双主题下不可靠；实心
+     方块与执行段的「空三角 → 实三角」共用同一套「空 → 实」语言。
+  2. DEFERRED 原定虚线菱形，改为实线。虚线在 10px 下糊，且 badge 边框
+     已经是 dashed，虚线语义没有丢。
+
+  新增两道门禁（<use> 指向不存在的 id 会静默不渲染，没有报错也没有
+  留白，必须有测试挡住）：
+  - test_every_shape_reference_resolves_within_its_own_page: 每页都内联
+    了 sprite，且页内每个 <use> 引用的 id 都在同页定义。
+  - test_status_and_track_shapes_all_have_a_symbol: i18n 可能发出的每个
+    id（含 unknown 兜底）都在 _shapes.html 里画了。
+  故意把 DECIDED 的 id 改错验证过：页面级测试漏掉（demo 里没有 DECIDED
+  节点），符号级测试抓到——两道门禁互补，缺一不可。
+
+  顺带修正了一个名不副实的测试：
+  test_every_status_has_its_own_shape_and_shapes_are_locale_independent
+  过去只断言形状取自一个 5 元字形集合，而 11 个状态填不满 5 个格子，
+  所以「每个状态有自己的形状」这句话从来没被验证过——形状退化正是这样
+  漏过去的。现在断言 11 个 id 两两不同，与它上面几行 label 的写法一致。
+
+relates_to: []
+benchmark_sources: []
+methodology_sources:
+  - note: 状态用颜色以外的第二编码维度（形状/文字）是 WCAG 1.4.1 Use of Color 的通行做法；本条要处理的不是有没有第二维度，而是维度存在但不携带信息
+created: 2026-09-01
+last_updated: 2026-09-01
