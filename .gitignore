@@ -23,3 +23,4 @@ examples/*/.planning/dist/
 # Internal working files (not part of the published tool)
 SPEC.md
 .review-workflow.js
+.claude/
