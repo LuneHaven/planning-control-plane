@@ -366,6 +366,14 @@ def test_sidebar_is_a_plain_nested_list_not_an_aria_tree(built_site, page_name):
     for target in re.findall(r'aria-controls="([^"]+)"', sidebar):
         assert f'id="{target}"' in sidebar, target
 
+    # Option B rests on the nesting being a real list, so the list role is
+    # spelled out: the global reset styles every list `list-style: none`,
+    # and WebKit drops list semantics from such lists. Dropping the
+    # attribute would silently take the hierarchy away from VoiceOver
+    # while every automated check here still passed.
+    for markup in re.findall(r"<ul[^>]*>", sidebar):
+        assert 'role="list"' in markup, markup
+
 
 def test_theme_css_supports_dark_mode(built_site):
     """SPEC §29: dark/light follows the system — pin both sides of the theme."""

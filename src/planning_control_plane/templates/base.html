@@ -49,7 +49,13 @@
 {% endif %}
     <nav class="sidebar-nav" aria-label="{{ t("site.sidebar_tree_label") }}" data-i18n-attr="aria-label=site.sidebar_tree_label">
 {% if tree %}
-      <ul class="tree" id="planning-tree">
+{# `role="list"` restores what the stylesheet takes away: WebKit drops
+   list semantics from any list styled `list-style: none`, which the
+   global reset applies to every list here. Without it VoiceOver stops
+   announcing the nesting — and the nesting is the whole point of this
+   sidebar, the more so since IDEA-0004 made the hierarchy the list's
+   job rather than an ARIA tree's. #}
+      <ul class="tree" id="planning-tree" role="list">
 {% for item in tree recursive %}
         <li class="treeitem{% if item.is_current %} is-current-page{% endif %}{% if item.is_focus %} is-focus{% endif %}" data-node-id="{{ item.id }}" data-status="{{ item.status.raw }}"{% if item.children %} data-expanded="true"{% endif %}{% if item.is_current %} data-current-page="true"{% endif %}>
           <div class="treeitem-row">
@@ -70,7 +76,7 @@
             </a>
           </div>
 {% if item.children %}
-          <ul id="tg-{{ item.stem }}">
+          <ul id="tg-{{ item.stem }}" role="list">
 {{ loop(item.children) }}
           </ul>
 {% endif %}
