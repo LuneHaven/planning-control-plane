@@ -4,67 +4,63 @@
 
 **把长期规划的上下文放在仓库里，而不是放在聊天记录里。**
 
+PCP 是一个命令行工具：把 AI 协作项目的规划过程（目标、决策、范围、进度）
+存成 `.planning/` 下的 YAML 文件，随 git 提交持久保存；`pcp build` 再把
+它们渲染成完全离线的静态 dashboard。
+
 ![规划总览](docs/screenshots/dashboard-zh.png)
 
 ## PCP 解决什么问题
 
-**Planning Control Plane（PCP，规划控制平面）** 管理规划过程本身——上下文
-与进度。规划数据以 YAML 形式存放在仓库里：讨论的结论固化为 **Planning
-Graph（规划图）**，随提交持久保存，会话结束、分支切换、工具更换都不影响
-续用。`pcp build` 再把这张图投影为静态 dashboard——确定性生成、完全
-离线，可随时删除重建。
-
-长周期规划在线性会话里以一种可预期的方式失败：
-
-```
-长期规划对话 → 上下文丢失 → 决策漂移 → 范围漂移
-```
+在聊天会话里讨论长期规划，通常会遇到三类问题：
 
 - **上下文丢失**：新会话（或新的一周）不再记得父级约束和已经做出的决策。
-- **决策漂移**：后续讨论无意识推翻已冻结的决策——没人会去重读 400 条
+- **决策漂移**：后续讨论无意识推翻已冻结的决策；没人会去重读 400 条
   消息里的第 40 条。
 - **范围漂移**：讨论范围悄悄扩大，越过了这一轮本该决策的边界。
 
-普通任务追踪器解决不了这些问题：问题不在「谁在做什么」，而在「讨论的
-上下文与边界去了哪里」。PCP 管理的正是后者——不是任务分派，也不是
-Jira / Notion 的替代品。
+任务追踪器回答「谁在做什么」；PCP 回答「讨论的上下文与边界去了哪里」。
+任务分派照旧留在你的追踪器里，PCP 只管规划过程。
 
 ## 核心思路
 
-1. **规划数据是源，HTML 只是投影。** Planning Graph 以纯 YAML 存放在
-   `.planning/`，随仓库提交。`pcp build` 把它渲染成一份可随时删除重建的
-   静态站点。
-2. **一棵继承既往决策的树。** 节点构成规划树（`PROGRAM → PHASE →
-   STRATEGY → …`）。父节点冻结的决策（Frozen Decisions）与范围边界
-   （Scope Boundary）会被每个子节点**继承并展示**，始终可见，而不是被
-   反复重新争论。
-3. **当前焦点（Current Focus）随时可恢复。** 任一时刻只有一个焦点节点。
-   `pcp context` 输出 **Context Capsule（上下文胶囊）**——一段紧凑、自
-   包含的恢复文本，粘贴到新的 AI 会话（或发给同事）即可从断点继续。
-4. **确定性、离线。** 相同规划数据 + 相同 PCP 版本 = 字节级相同的输出。
-   生成页面不引用任何 CDN、远程字体或网络请求，直接双击 `file://` 打开
-   即可使用。
+1. **规划数据是源头，HTML 只是投影。** Planning Graph 以纯 YAML 的形式
+   存放在 `.planning/` 下，随仓库提交。`pcp build` 把它渲染成一个可随时
+   删除重建的静态站点。
+2. **决策与范围边界沿规划树继承。** 节点构成规划树（`PROGRAM → PHASE →
+   STRATEGY → …`）。每个子节点都会**继承并展示**父节点冻结的决策
+   （Frozen Decisions）与范围边界（Scope Boundary），让它们始终可见，
+   不必反复重新争论。
+3. **随时可以从断点继续。** 任一时刻只有一个当前焦点（Current Focus）。
+   `pcp context` 输出 **Context Capsule（上下文胶囊）**：一段紧凑、
+   自包含的恢复文本，粘贴到新的 AI 会话（或发给同事），即可接着上次
+   继续。
+4. **确定性输出，完全离线。** 相同的规划数据 + 相同的 PCP 版本 =
+   字节级相同的输出。生成页面不引用任何 CDN 或远程字体，也不发出任何
+   网络请求；双击打开（`file://`）即可使用。
 
 ## 功能
 
-- **Planning Graph（规划图）**——节点带 parent / dependency / blocking /
-  related / supersedes 边，按图校验（含环检测）
-- **Current Focus（当前焦点）**——下一个会话应推进的唯一节点，dashboard
-  与规划树中高亮
-- **Frozen / Open / Blocking / Deferred 四类决策**——分类存储、沿树继承、
+- **Planning Graph（规划图）**：节点之间支持 parent / dependency /
+  blocking / related / supersedes 五种边；对整张图做校验（含环检测）
+- **Current Focus（当前焦点）**：下一个会话应推进的唯一节点，在
+  dashboard 与规划树中高亮显示
+- **Frozen / Open / Blocking / Deferred 四类决策**：分类存储、沿树继承、
   不会静默丢失
-- **Scope Boundary（范围边界）**——每个节点显式声明本轮要做 / 本轮不做；
-  祖先声明的条目会继承显示，标明边界所在
-- **三条独立轨道**——讨论、回写、实施三个状态分别存储，任一状态都不由
-  另外两个推导得出
-- **Context Capsule**——`pcp context <node>` 输出可直接粘贴的恢复文本；
-  节点页有一键「复制上下文」
-- **静态 dashboard**——确定性、离线、支持深色模式的 HTML，按需分层展开
-- **中英双语界面**——English 与 简体中文，浏览器内运行时切换
-- **权威边界**——PCP 只对规划本身有权威；规范文档归你的仓库所有，
+- **Scope Boundary（范围边界）**：每个节点显式声明本轮要做 / 本轮不做；
+  祖先声明的条目会继承下来一并显示，标明边界所在
+- **三条独立轨道**：讨论、回写、实施三项状态分别存储，任何一项都不由
+  另外两项推导得出
+- **Context Capsule**：`pcp context <node>` 输出可直接粘贴的恢复文本；
+  节点页有「复制上下文」按钮，一键复制
+- **静态 dashboard**：确定性生成、完全离线，支持深色模式；
+  内容按需分层展开
+- **中英双语界面**：English 与 简体中文，在浏览器内即时切换
+- **权威边界**：PCP 只管规划本身；规范文档归你的仓库所有，
   PCP 只链接，不取代
-- **想法层**——`.planning/ideas/` 捕获尚未承诺的思考，`pcp ideas` 负责
-  列出与筛选；想法文件格式错误只降级为一条校验 issue，永不阻断计划
+- **想法层**：`.planning/ideas/` 捕获尚未承诺的想法，`pcp ideas` 负责
+  列出与筛选；想法文件格式错误只会降级为一条校验 issue，
+  绝不影响规划本身
 
 ## 安装
 
@@ -127,7 +123,7 @@ pcp validate      # 结构 + 一致性校验
 pcp build         # 生成 .planning/dist/
 ```
 
-用浏览器打开 `.planning/dist/index.html`——直接双击即可，站点完全离线。
+用浏览器打开 `.planning/dist/index.html`（直接双击即可，站点完全离线）。
 继续在终端里：
 
 ```bash
@@ -135,9 +131,9 @@ pcp status        # 概览：焦点、阻塞、进度计数
 pcp context       # 当前焦点的恢复 capsule
 ```
 
-如果想直接体验现成示例，看
-[`examples/demo-project-zh`](examples/demo-project-zh)——一个虚构的示例
-仓库，含七个节点的中文规划树，可立即 `pcp build`；
+如果想直接体验现成示例，可以看
+[`examples/demo-project-zh`](examples/demo-project-zh)。这是一个虚构的
+示例仓库，含一棵七个节点的中文规划树，可立即 `pcp build`；
 [`examples/demo-project`](examples/demo-project) 是同类场景的英文版本。
 两者是各自独立的规划数据，不是彼此的翻译（原因见
 [界面语言](#界面语言)）。
@@ -147,7 +143,7 @@ pcp context       # 当前焦点的恢复 capsule
 | 命令                                                | 作用                                                                                                                    |
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `pcp init`                                        | 生成 `.planning/` 骨架；绝不覆盖已有文件（`--force` 只补建缺失文件）                                                                        |
-| `pcp agents`                                      | 打印可直接粘贴的 AGENTS.md 段落，让 AI harness 知道本仓库的 PCP 工作流。只读——用 `pcp agents >> AGENTS.md` 自行追加                                |
+| `pcp agents`                                      | 打印可直接粘贴的 AGENTS.md 段落，让 AI harness 知道本仓库的 PCP 工作流。只读；用 `pcp agents >> AGENTS.md` 自行追加                                |
 | `pcp validate`                                    | 结构 + 规划一致性校验，逐行输出（`ERROR`/`WARNING` + 节点 + 规则 + 原因）                                                                   |
 | `pcp build`                                       | 先校验，再确定性重建 HTML 输出目录                                                                                                  |
 | `pcp build --check`                               | 在临时目录重新生成并比对，检测输出是否过期（CI 用）                                                                                           |
@@ -157,7 +153,7 @@ pcp context       # 当前焦点的恢复 capsule
 | `pcp ideas [--status S] [--for NODE [--subtree]]` | 按状态分组列出想法层。`--for` 选出与某节点或其祖先相关的想法，`--subtree` 切换为该节点的子树方向。`--for` 不带 `--status` 时只列出 OPEN 与 PARKED。最后一行给出下一个可用的想法 id |
 | `pcp graduate IDEA --to NODE [--note TEXT]`       | 毕业一个想法：向想法文件写入 `status: PROMOTED` 与 `outcome`，并把带 `ref` 的论据条目复制进节点的 `evidence_sources`（保留注释；节点须已存在；失败时两文件回滚）          |
 
-全局参数：`-p/--project-root PATH`——目标仓库根目录（其余命令从该目录
+全局参数 `-p/--project-root PATH` 指定目标仓库根目录（其余命令从该目录
 向上查找 `.planning/`）。
 
 退出码：`0` 成功 · `1` 业务失败（校验错误、未知节点、产物过期）·
@@ -167,12 +163,12 @@ pcp context       # 当前焦点的恢复 capsule
 
 两份资产让 AI coding harness 知道何时该用 `pcp`：
 
-1. **AGENTS.md 段落**——每个仓库执行一次 `pcp agents >> AGENTS.md`，写入
+1. **AGENTS.md 段落**：每个仓库执行一次 `pcp agents >> AGENTS.md`，写入
    两类内容：仓库自己的规则（文档命名、登记约定）与会话工作流。AGENTS.md
    是多数 harness 原生读取的开放标准（Codex、Cursor、Gemini CLI、
    ZCode……）；Claude Code 只读 `CLAUDE.md`，因此需要一个内容仅为
    `@AGENTS.md` 的 CLAUDE.md 作为桥接。
-2. **Skill**——[`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
+2. **Skill**：[`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
    是工具本身的手册。一份内容，多个安装位置：
    ```bash
    # 用户级，跨 harness 共享（ZCode 会扫描 ~/.agents/skills/）
@@ -180,11 +176,11 @@ pcp context       # 当前焦点的恢复 capsule
    curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
      -o ~/.agents/skills/pcp/SKILL.md
    ```
-   Claude Code 不扫描 `~/.agents/`——在 `~/.claude/skills/pcp/` 给它装自己的
+   Claude Code 不扫描 `~/.agents/`；在 `~/.claude/skills/pcp/` 给它装自己的
    副本。若要团队共享，则把 SKILL.md 提交到仓库的 `.agents/skills/pcp/`。
 
-   Skill 随仓库分发，不随 Python 包分发：它是 harness 资产，不是 PCP 运行时的
-   一部分——运行时适配器与插件仍不在范围内（见路线图）。
+   Skill 随仓库分发，不随 Python 包分发：它是 harness 资产，不属于 PCP
+   运行时；运行时适配器与插件仍不在范围内（见路线图）。
 
 这样分工不会产生重复内容，两处也就不会互相矛盾：仓库规则只写在
 `AGENTS.md`，命令手册只写在 `SKILL.md`。
@@ -192,7 +188,7 @@ pcp context       # 当前焦点的恢复 capsule
 ## 想法层
 
 规划节点是**决策之后**的控制系统：节点存在，是因为某件事已经被承诺。想法层
-承载在此之前的东西——已经捕获、但还没有资格进入计划的思考。
+承载更早的阶段：已经捕获、但还没有资格进入计划的思考。
 
 ```
 .planning/ideas/IDEA-0007.yaml     # 每个想法一个文件（直接放在 ideas/ 下，.yaml 后缀）
@@ -220,7 +216,7 @@ last_updated: 2026-08-27
 - **捕获零门槛。** `benchmark_sources` / `methodology_sources` 全空是
   合法状态，不产生任何 WARNING。
 - **唯一入口。** 想法进入规划图必须经过毕业：先建节点，再把想法的
-  `outcome.node` 指向该节点——手工编辑，或用
+  `outcome.node` 指向该节点，手工编辑或用
   `pcp graduate IDEA-0007 --to P2-A5`，后者还会把想法中带 `ref` 的论据
   条目复制进节点的 `evidence_sources`。
   节点永不反向引用想法，因此读计划不会牵扯到未完成的思考。
@@ -231,7 +227,7 @@ last_updated: 2026-08-27
 
 只有项目中存在想法时，生成站点才会多出 `ideas.html` 页与侧栏入口。
 
-想法层有一条贯穿的规则：`id` 决定身份，文件名只是索引。由此得出两点——
+想法层有一条贯穿的规则：`id` 决定身份，文件名只是索引。由此得出两条规则：
 文件名与 `id` 不一致时，`pcp validate` 报 `idea-filename-mismatch`
 WARNING，不阻断，改名即可；`pcp ideas` 的最后一行给出下一个可用的
 `IDEA-<NNNN>`，编号同时参考已加载的 id 与磁盘上的文件名，因此永远不会
@@ -244,17 +240,17 @@ WARNING，不阻断，改名即可；`pcp ideas` 的最后一行给出下一个�
 - **节点状态**（规划生命周期，不是看板）：`NOT_STARTED`、`DISCUSSING`、
   `INVESTIGATING`、`DECIDED`、`WRITEBACK_PENDING`、`WRITEBACK_DONE`、
   `READY`、`IMPLEMENTING`、`BLOCKED`、`DONE`、`DEFERRED`。
-- **三条独立轨道**——`discussion_status` / `writeback_status` /
+- **三条独立轨道**：`discussion_status` / `writeback_status` /
   `implementation_status` ∈ `NOT_STARTED`、`IN_PROGRESS`、`DONE`、`N/A`。
   一个纯讨论节点可以是 Discussion `DONE` + Writeback `DONE` +
   Implementation `N/A`。
-- **决策**——每个节点各有四个清单：
-  - *Frozen（已冻结）*——已定；子节点继承，不应无意识推翻
-  - *Open（未决）*——已识别、未定
-  - *Blocking（阻塞）*——未解决且阻止收尾（`DONE` + blocking → 校验 ERROR）
-  - *Deferred（已延期）*——明确推迟
-- **范围边界**——每节点 `scope` / `out_of_scope` 清单；祖先声明的条目会
-  继承显示，标明边界所在。
+- **决策**：每个节点有四个清单
+  - *Frozen（已冻结）*：已定；子节点继承，不应无意识推翻
+  - *Open（未决）*：已识别、未定
+  - *Blocking（阻塞）*：未解决且阻止收尾（`DONE` + blocking → 校验 ERROR）
+  - *Deferred（已延期）*：明确推迟
+- **范围边界**：每节点 `scope` / `out_of_scope` 清单；祖先声明的条目会
+  继承下来一并显示，标明边界所在。
 
 ## `.planning/` 结构
 
@@ -306,7 +302,7 @@ last_updated: 2026-08-17
 
 ![节点详情](docs/screenshots/node-zh.png)
 
-- **侧栏**承载完整规划树——状态、焦点标记、展开/折叠。
+- **侧栏**承载完整规划树，含状态、焦点标记与展开/折叠。
 - **Dashboard** 只回答四个问题：现在在哪（当前焦点）、是否被阻塞（需处理
   项）、焦点周围是什么（焦点分支）、接下来可以开始什么（就绪队列）。
 - **节点页**按控制面优先级排列：sticky header（节点 ID、状态、三条轨道、
@@ -327,7 +323,7 @@ pcp context --full     # 追加祖先摘要、关联节点、已延期决策
 
 把 capsule 粘贴到新的 AI 会话作为开场上下文。它只携带新会话需要的内容：
 该节点的目标、继承的已冻结决策、范围边界、未决与阻塞决策、来源与三条
-轨道的状态——除此之外不含任何其他内容。节点页的「恢复这项工作」面板
+轨道的状态，除此之外不含任何其他内容。节点页的「恢复这项工作」面板
 展示同一份 capsule，并带复制按钮。
 
 ![恢复这项工作](docs/screenshots/node-zh-resume.png)
@@ -351,15 +347,15 @@ pcp context --full     # 追加祖先摘要、关联节点、已延期决策
 
 界面支持 English 与 简体中文。
 
-- **项目默认语言**——`.planning/project.yaml` 的 `ui.locale`：
+- **项目默认语言**：`.planning/project.yaml` 的 `ui.locale`：
   ```yaml
   ui:
     locale: zh-CN     # 或 en（默认）
   ```
-- **运行时切换**——顶栏有 `English / 中文` 切换控件。切换在浏览器内即时
+- **运行时切换**：顶栏有 `English / 中文` 切换控件。切换在浏览器内即时
   完成：不重新 build、不刷新、不联网。偏好保存在 `localStorage`，跨页面
   跳转与刷新后仍然有效；清除后回落到项目默认。`project.yaml` 永不被修改。
-- **语言不碰数据**——标识符与原始值（节点 ID、决策 ID、存储的枚举值）、
+- **语言不碰数据**：标识符与原始值（节点 ID、决策 ID、存储的枚举值）、
   你撰写的文本（标题、摘要、`pcp context` capsule）在任何语言下都保持
   原值。详细状态视图同时显示「本地化文案 + 原始枚举」（如
   `未开始 NOT_STARTED`），机器可读的值始终可搜索。
@@ -382,21 +378,21 @@ pcp context --full     # 追加祖先摘要、关联节点、已延期决策
 
 模块：`model.py`（枚举与数据模型）· `loader.py`（容错 YAML 加载）·
 `graph.py`（树/图操作）· `validator.py`（校验规则）· `context.py`
-（capsule）· `i18n.py`（界面翻译表——单一来源，逐页内嵌）·
+（capsule）· `i18n.py`（界面翻译表，单一来源、逐页内嵌）·
 `generator.py` + `templates/`（确定性 HTML 生成）· `cli.py`。
 
 ## 权威边界（Authority Boundary）
 
-PCP 只对**规划结构与规划进度**具有权威性。产品、治理、架构与实现的
+PCP 的权威仅限**规划结构与规划进度**。产品、治理、架构与实现的
 规范语义仍归你项目自己的文档所有；PCP 只链接它们
 （`canonical_sources` / `evidence_sources`），不复制、不判定其内容。每张
 生成页面都在页脚声明这一点。
 
 ## 当前状态
 
-**当前版本：V0.1.2**，已达到可用 MVP 阶段，并在真实项目中完成自用验证：
+**当前版本：V0.1.3**，已达到可用 MVP 阶段，并在真实项目中完成自用验证：
 引擎、CLI、校验器、capsule 与双语界面均已可用，自动化测试共 409 项。
-PCP **尚未发布到 PyPI**——请按上文从源码安装。
+PCP **尚未发布到 PyPI**：请按上文从源码安装。
 
 ## 路线图
 
