@@ -1,0 +1,74 @@
+id: IDEA-0004
+title: 侧栏树声明了 role="tree" 却没有实现 ARIA 键盘模型
+status: OPEN
+detail: |
+  2026-09-01 浏览器实测：base.html 的侧栏规划树声明了 role="tree" /
+  role="treeitem" / aria-expanded，但配套的键盘交互模型完全没有实现。
+  性质上与 IDEA-0003 不同——那条是「做了但不够好」，这条是「承诺了没
+  兑现」。
+
+  证据（demo-project 构建产物，页内求值）：
+  1. 7 个 treeitem 无一带 tabindex，tree 容器本身也没有。ARIA tree 要求
+     roving tabindex：恰好一个 treeitem 为 0，其余为 -1。
+  2. app.js 全文只有一处 keydown（第 414 行，Escape 关闭 off-canvas
+     侧栏），没有任何方向键、Home/End 处理。
+  3. 可聚焦元素落在 treeitem 内部而非 treeitem 自身；有子节点的项各有
+     2 个 Tab 停靠点（折叠按钮 + 链接）。
+
+  后果两层。其一，NVDA/JAWS 遇到 role="tree" 会切换到应用模式，把方向
+  键交给页面 JS 处理，而页面不处理，方向键在树内直接失效——这种情况
+  下声明 role 比不声明更糟。其二，纯键盘用户穿过侧栏需要约 2N 次 Tab
+  （50 个节点接近 90 次）；skip link 兜住了「跳过侧栏」，兜不住「在树
+  内导航」。
+
+  两条收口路径：
+  A. 补全键盘模型——roving tabindex，上下键在可见项间移动，右键展开/
+     进入子项，左键折叠/回父项，Home/End 跳首尾，字母键跳转。还需为
+     tree-toggle 按钮补动作语义（当前 aria-label 只有节点 id，读作
+     「P1 按钮 已展开」）。
+  B. 改为普通嵌套导航列表——去掉 role="tree"/"treeitem"，保留 <nav> +
+     嵌套 <ul> + 折叠按钮的 aria-expanded。
+
+  2026-09-01 取向：选 B。
+
+  第一版把 B 记成了「降级」、把 A 记成「更符合项目的无障碍基线」，这个
+  框定是错的。ARIA 的 tree 模式是给树形数据控件用的——文件浏览器那类，
+  有选中态、多选、拖拽、就地重命名。而这个侧栏树只能做两件事：点链接
+  跳页、折叠分支。它在语义上本来就是分层导航，不是 tree widget。
+
+  所以 B 不是省事的妥协，是把语义用对；A 才是给一个导航列表套上它并不
+  具备的控件语义，然后被迫补齐一整套没人会用的交互。判据是「语义是否
+  匹配」，不是「role 是否够重」——用对语义才符合项目既有的无障碍基线。
+  成本低（删属性加一轮回归验证，不是一个键盘状态机）是这个选择的结果，
+  不是它的理由。
+
+  实现面（2026-09-01 查清，比「删几个属性」大）：折叠状态的样式与脚本
+  钩子目前挂在 ARIA 属性本身上，去掉 role 后这些钩子要换成非 ARIA 的
+  （data 属性或类名），否则会留下无 role 却带 aria-expanded 的 <li>，
+  仍是无效 ARIA。具体位置——
+  - style.css:415 `.tree ul[role="group"]`；
+  - style.css:461 `.treeitem[aria-expanded="true"] > ... .tree-caret`（箭头方向）；
+  - style.css:465 `.treeitem[aria-expanded="false"] > ul[role="group"]`（折叠隐藏）；
+  - app.js:216 `.treeitem[aria-expanded]` 及第 220/230/265 行的读写；
+  - base.html:52 <li> 上的 role 与 aria-expanded、第 57 行 <ul role="group">。
+  app.js 全程用 .treeitem 类名选择、从不用 [role=] 选择器，所以受影响的
+  是 aria-expanded 这个状态钩子，不是 role 本身。折叠按钮上的
+  aria-expanded 与 aria-controls 保持不动——那两个属性放在 button 上
+  本来就成立。
+
+  仍待确认：去掉 role 后层级关系由嵌套 <ul> 承担，屏幕阅读器的列表
+  播报（「列表 3 项，第 2 项」）是否足以表达规划树的父子深度。
+
+  工作量修正：仍远小于 A（一套键盘状态机），但属于跨 3 个文件约 10 处的
+  机械改动加一轮回归验证，不是删几个属性。
+
+  优先级说明：按「承诺未兑现」的性质排，本条在 IDEA-0003 之前；按目标
+  用户的实际使用频率排（状态 badge 每天都在扫），IDEA-0003 在前。两种
+  排序都成立，尚未选定。
+relates_to: []
+benchmark_sources: []
+methodology_sources:
+  - note: WAI-ARIA Authoring Practices 的 Tree View 模式定义了 role="tree" 隐含的键盘契约（roving tabindex、方向键、Home/End、字母键跳转）
+  - note: 「No ARIA is better than bad ARIA」——W3C APG 首条通用规则；声明 role 但不实现其交互模型会让辅助技术进入应用模式后失去可用按键
+created: 2026-09-01
+last_updated: 2026-09-01
