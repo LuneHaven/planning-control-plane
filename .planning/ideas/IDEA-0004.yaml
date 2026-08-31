@@ -1,6 +1,6 @@
 id: IDEA-0004
 title: 侧栏树声明了 role="tree" 却没有实现 ARIA 键盘模型
-status: OPEN
+status: PROMOTED
 detail: |
   2026-09-01 浏览器实测：base.html 的侧栏规划树声明了 role="tree" /
   role="treeitem" / aria-expanded，但配套的键盘交互模型完全没有实现。
@@ -113,3 +113,6 @@ methodology_sources:
   - note: 「No ARIA is better than bad ARIA」——W3C APG 首条通用规则；声明 role 但不实现其交互模型会让辅助技术进入应用模式后失去可用按键
 created: 2026-09-01
 last_updated: 2026-09-01
+outcome:
+  node: A11Y-2
+  note: B 方案已落地；前提漏洞（WebKit 列表语义）已由 A11Y-3 收口

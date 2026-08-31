@@ -1,6 +1,6 @@
 id: IDEA-0005
 title: 全局 list-style 重置使 WebKit 丢掉所有列表的语义
-status: OPEN
+status: PROMOTED
 detail: |
   2026-09-01 在验证 IDEA-0004 的实现时发现，范围超出侧栏树，单独记一条。
 
@@ -80,3 +80,6 @@ methodology_sources:
   - note: WebKit 对 list-style:none 移除列表语义是有意行为，公开记录见 Scott O'Hara "Fixing Lists"；标准修复是在列表上显式声明 role="list"
 created: 2026-09-01
 last_updated: 2026-09-01
+outcome:
+  node: A11Y-3
+  note: A 方案已落地；真机 Safari 验收仍开放，见节点 next_action

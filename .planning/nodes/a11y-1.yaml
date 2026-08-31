@@ -1,0 +1,26 @@
+id: A11Y-1
+title: 状态视觉编码——每个状态独立 SVG 形状，同族配色拉开
+type: IMPLEMENTATION
+status: DONE
+objective: |
+  修复状态 badge 的双重退化：11 个状态里 7 个共用同一字形，文本+形状+颜色
+  三维编码里形状维度不载信息（几何字形在离线回退字体下还渲染得大小不一）；
+  且 IMPLEMENTING 与 DISCUSSING（ΔE 2.4）、WRITEBACK_DONE 与 READY
+  （ΔE 1.8）在 badge 尺寸下肉眼不可分。
+scope:
+  - 状态形状全部改为 SVG symbol，每个状态一个形状；sprite 逐页内联（<use> 外链在 file:// 下被禁）
+  - IMPLEMENTING 移至 teal，WRITEBACK_DONE 移至 olive，两对撞色拉开
+out_of_scope:
+  - 配色体系整体重构（只动了两处撞色）
+frozen_decisions:
+  - id: D1
+    summary: 形状用逐页内联的 SVG sprite，不用 <use> 外链——这些页面要在 file:// 下打开，外链引用会被禁
+  - id: D2
+    summary: 只移两处撞色的色相，不做配色体系重构
+evidence_sources:
+  - CHANGELOG.md
+next_action: ""
+discussion_status: DONE
+writeback_status: N/A
+implementation_status: DONE
+last_updated: "2026-09-01"

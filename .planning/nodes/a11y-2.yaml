@@ -1,0 +1,27 @@
+id: A11Y-2
+title: 侧栏从 ARIA tree 改为普通嵌套导航列表（方案 B）
+type: IMPLEMENTATION
+status: DONE
+objective: |
+  侧栏声明了 role="tree" 却从未实现其键盘契约（roving tabindex、方向键、
+  Home/End、字母键跳转）。NVDA/JAWS 遇到 tree 会切应用模式并把方向键交给
+  页面 JS，而页面不处理——方向键在侧栏内直接失效，声明比不声明更糟。侧栏
+  只能点链接和折叠分支，语义上本是分层导航，不是 tree widget。
+scope:
+  - 去掉 role="tree" / "treeitem" / "group" 及 ul 上冗余的 aria-label（标签由外层 nav 承担）
+  - <li> 的折叠状态钩子 aria-expanded 迁到 data-expanded；折叠按钮保留 aria-expanded / aria-controls
+  - style.css 三条树选择器同位改写（嵌套参考线选择器改为 .tree ul，靠源码顺序取胜）
+  - 新增 test_sidebar_is_a_plain_nested_list_not_an_aria_tree，翻转既有树断言 3 处
+frozen_decisions:
+  - id: D1
+    summary: 取方案 B（普通嵌套导航列表）而非补全键盘模型——判据是语义是否匹配，不是 role 够不够重
+  - id: D2
+    summary: 层级表达完全交给嵌套 ul，故侧栏两处 ul 显式声明 role="list"，防 WebKit 对 list-style:none 列表剥离语义
+related_to: [A11Y-3]
+evidence_sources:
+  - CHANGELOG.md
+next_action: ""
+discussion_status: DONE
+writeback_status: N/A
+implementation_status: DONE
+last_updated: "2026-09-01"

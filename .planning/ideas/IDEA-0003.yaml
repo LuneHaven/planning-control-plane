@@ -1,6 +1,6 @@
 id: IDEA-0003
 title: 状态视觉编码退化：7 个状态共用形状、同族色肉眼不可分
-status: OPEN
+status: PROMOTED
 detail: |
   2026-09-01 浏览器实测（examples/demo-project 与 demo-project-zh 构建后
   逐页验证）：spec §13 承诺的「文字 + 形状 + 颜色」三重编码，在部分状态
@@ -137,3 +137,6 @@ methodology_sources:
   - note: 状态用颜色以外的第二编码维度（形状/文字）是 WCAG 1.4.1 Use of Color 的通行做法；本条要处理的不是有没有第二维度，而是维度存在但不携带信息
 created: 2026-09-01
 last_updated: 2026-09-01
+outcome:
+  node: A11Y-1
+  note: 已实现并验证（2026-09-01）；CHANGELOG Unreleased 收录，实现细节见本 idea 的实现进展段

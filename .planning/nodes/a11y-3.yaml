@@ -1,0 +1,26 @@
+id: A11Y-3
+title: 全站列表显式声明 role="list"（方案 A）
+type: IMPLEMENTATION
+status: DONE
+objective: |
+  style.css 的全局重置 ul, ol { list-style: none } 命中站内每个列表，而
+  WebKit 对去掉项目符号的列表会从 accessibility tree 移除 list/listitem
+  语义——Safari + VoiceOver 下全站列表失去起止与位置播报（面包屑的层级
+  深度、scope 两栏的边界首当其冲）。
+scope:
+  - 23 处列表补 role="list"：node.html 15（面包屑 ol、scope ×2、decision ×5、ref ×5、source ×2）、index.html 5、ideas.html 3
+  - 侧栏两处已随 A11Y-2 补过
+  - 门禁两个且故意一刀切无白名单：test_every_list_declares_its_list_role（index 与各 node 页）、test_ideas_page_lists_declare_their_list_role（ideas 页，另一 fixture 够不着）——该缺陷渲染无差别、控制台无告警、其余测试全绿，白名单会静默放走下一次
+out_of_scope:
+  - 收窄全局重置（方案 B）——需逐处重核视觉，未来新增列表仍会踩同一坑，门禁也难写
+frozen_decisions:
+  - id: D1
+    summary: 逐个补 role="list" 而非收窄重置；原估「要逐个判断哪些纯装饰」实际不存在——项目里没有装饰性列表，idea-sources 也载信息且无 count 冗余
+related_to: [A11Y-2]
+evidence_sources:
+  - CHANGELOG.md
+next_action: "真机 Safari + VoiceOver 验收一次——面包屑层级深度与 scope 两栏边界（WebKit 行为依据公开记录，本机仅 Chromium，未实测）"
+discussion_status: DONE
+writeback_status: N/A
+implementation_status: DONE
+last_updated: "2026-09-01"
