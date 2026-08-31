@@ -20,7 +20,7 @@ classifiers = [
     "Natural Language :: Chinese (Simplified)",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Planning",
+    "Topic :: Software Development",
 ]
 dependencies = [
     "PyYAML>=6.0",
