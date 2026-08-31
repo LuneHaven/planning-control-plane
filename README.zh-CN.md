@@ -5,8 +5,8 @@
 **把长期规划的上下文放在仓库里，而不是放在聊天记录里。**
 
 PCP 是一个命令行工具：把 AI 协作项目的规划过程（目标、决策、范围、进度）
-存成 `.planning/` 下的 YAML 文件，随 git 提交持久保存；`pcp build` 再把
-它们渲染成完全离线的静态 dashboard。
+存为 `.planning/` 下的 YAML 文件，随 git 提交持久保存；`pcp build` 再把
+它们渲染成离线的静态仪表盘。
 
 ![规划总览](docs/screenshots/dashboard-zh.png)
 
@@ -140,7 +140,7 @@ pcp context       # 当前焦点的恢复 capsule
 | 命令                                                | 作用                                                                                                                    |
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `pcp init`                                        | 生成 `.planning/` 骨架；绝不覆盖已有文件（`--force` 只补建缺失文件）                                                                        |
-| `pcp agents`                                      | 打印可直接粘贴的 AGENTS.md 段落，让 AI harness 知道本仓库的 PCP 工作流。只读；用 `pcp agents >> AGENTS.md` 自行追加                                |
+| `pcp agents`                                      | 打印可直接粘贴的 AGENTS.md 段落，让 AI harness 知道本仓库的 PCP 工作流。只读；用 `pcp agents >> AGENTS.md` 自行追加                                 |
 | `pcp validate`                                    | 结构 + 规划一致性校验，逐行输出（`ERROR`/`WARNING` + 节点 + 规则 + 原因）                                                                   |
 | `pcp build`                                       | 先校验，再确定性重建 HTML 输出目录                                                                                                  |
 | `pcp build --check`                               | 在临时目录重新生成并比对，检测输出是否过期（CI 用）                                                                                           |
@@ -158,13 +158,13 @@ pcp context       # 当前焦点的恢复 capsule
 
 ## AI Harness 集成
 
-两份资产让 AI coding harness 知道何时该用 `pcp`：
+要让 AI coding harness 知道何时该用 `pcp`，需要两份资产：
 
-1. **AGENTS.md 段落**：每个仓库执行一次 `pcp agents >> AGENTS.md`，写入
-   两类内容：仓库自己的规则（文档命名、登记约定）与会话工作流。AGENTS.md
-   是多数 harness 原生读取的开放标准（Codex、Cursor、Gemini CLI、
-   ZCode……）；Claude Code 只读 `CLAUDE.md`，因此需要一个内容仅为
-   `@AGENTS.md` 的 CLAUDE.md 作为桥接。
+1. **AGENTS.md 段落**：在每个仓库执行一次 `pcp agents >> AGENTS.md`，
+   写入两类内容：仓库自己的规则（文档命名、登记约定）与会话工作流。
+   AGENTS.md 是多数 harness 原生支持的开放标准（Codex、Cursor、
+   Gemini CLI、ZCode……）；Claude Code 只读 `CLAUDE.md`，因此需要一个
+   只含 `@AGENTS.md` 的 CLAUDE.md 来桥接。
 2. **Skill**：[`integrations/skills/pcp/SKILL.md`](integrations/skills/pcp/SKILL.md)
    是工具本身的手册。一份内容，多个安装位置：
    ```bash
@@ -173,19 +173,19 @@ pcp context       # 当前焦点的恢复 capsule
    curl -fsSL https://raw.githubusercontent.com/LuneHaven/planning-control-plane/main/integrations/skills/pcp/SKILL.md \
      -o ~/.agents/skills/pcp/SKILL.md
    ```
-   Claude Code 不扫描 `~/.agents/`；在 `~/.claude/skills/pcp/` 给它装自己的
-   副本。若要团队共享，则把 SKILL.md 提交到仓库的 `.agents/skills/pcp/`。
+   Claude Code 不扫描 `~/.agents/`，要在 `~/.claude/skills/pcp/` 单独
+   为它装一份。如果要团队共用，就把 SKILL.md 提交到仓库的
+   `.agents/skills/pcp/`。
 
-   Skill 随仓库分发，不随 Python 包分发：它是 harness 资产，不属于 PCP
-   运行时；运行时适配器与插件仍不在范围内（见路线图）。
+   Skill 随仓库分发，而不随 Python 包安装：它是 harness 资产，不属于
+   PCP 运行时；运行时适配器与插件仍不在范围内（见路线图）。
 
-这样分工不会产生重复内容，两处也就不会互相矛盾：仓库规则只写在
-`AGENTS.md`，命令手册只写在 `SKILL.md`。
+这样分工让内容各司其职：仓库规则只写在 `AGENTS.md`，命令手册只写在
+`SKILL.md`，没有需要保持同步的重复内容。
 
 ## 想法层
 
-规划节点是**决策之后**的控制系统：节点存在，是因为某件事已经被承诺。想法层
-承载更早的阶段：已经捕获、但还没有资格进入计划的思考。
+规划节点是已经规划的任务节点，想法层用于记录尚未规划的初步构思。
 
 ```
 .planning/ideas/IDEA-0007.yaml     # 每个想法一个文件（直接放在 ideas/ 下，.yaml 后缀）
@@ -197,38 +197,41 @@ title: Add a trend comparison view to the dashboard
 status: OPEN                       # OPEN | PARKED | PROMOTED | DISCARDED
 detail: One paragraph. Capture asks for no structure.
 relates_to: [P2]                   # 这个想法关联的规划节点
-benchmark_sources:                 # 成熟产品实际怎么做
+benchmark_sources:                 # 竞品或成熟产品实际怎么做
   - ref: docs/benchmarks/grafana-panels.md
-    note: Grafana 的对比面板说明需求是稳定的
+    note: Grafana 的对比面板说明该需求是稳定的
   - note: Stripe 的月环比面板              # 仓库外：只写 note
-methodology_sources:               # 为什么成立，与具体产品解耦
+methodology_sources:               # 方法论依据，与具体产品解耦
   - ref: docs/method/heuristics.md
-outcome: ~                         # 想法毕业为节点时填写
+outcome: ~                         # 想法「毕业」为节点时填写
 created: 2026-08-27
 last_updated: 2026-08-27
 ```
 
-四条性质是刻意的：
+上述四条性质设计原由如下：
 
-- **捕获零门槛。** `benchmark_sources` / `methodology_sources` 全空是
-  合法状态，不产生任何 WARNING。
-- **唯一入口。** 想法进入规划图必须经过毕业：先建节点，再把想法的
-  `outcome.node` 指向该节点，手工编辑或用
-  `pcp graduate IDEA-0007 --to P2-A5`，后者还会把想法中带 `ref` 的论据
-  条目复制进节点的 `evidence_sources`。
-  节点永不反向引用想法，因此读计划不会牵扯到未完成的思考。
-- **想法不会破坏计划。** 想法文件格式错误只会降级为一条校验 issue 并跳过该文件，
-  `pcp status` / `pcp context` / `pcp build` 照常工作；想法层 ERROR 也不阻断构建。
-- **capsule 永不含想法。** `pcp context` 只携带规划数据；
-  `pcp ideas --for <node>` 是另一次显式的、有意的查询。
+- **捕获零门槛。** `benchmark_sources` 和 `methodology_sources` 完全留空
+  也是合法状态，不会触发任何 WARNING，鼓励随手记录。
+- **唯一入口。** 想法进入规划图必须经过「毕业」（graduate）：先创建对应的
+  规划节点，再把想法文件里的 `outcome.node` 指向它。这一步可以手工完成，
+  也可以用 `pcp graduate IDEA-0007 --to P2-A5`，后者还会把带 `ref` 的论据
+  条目一并复制进节点的 `evidence_sources`。
+  节点永远不会反向引用想法，因此读规划时不会牵扯到未完成的想法。
+- **想法不会破坏计划。** 想法文件格式错误时，系统只记一条校验 issue 并
+  跳过该文件，`pcp status` / `pcp context` / `pcp build` 照常工作；想法层
+  的 ERROR 也不阻断构建。
+- **capsule 永不含想法。** `pcp context` 只携带规划数据；想看某个节点
+  相关的想法，显式执行 `pcp ideas --for <node>`。
 
-只有项目中存在想法时，生成站点才会多出 `ideas.html` 页与侧栏入口。
+只有项目中已有想法时，生成的站点才会多出 `ideas.html` 页与侧栏入口。
 
-想法层有一条贯穿的规则：`id` 决定身份，文件名只是索引。由此得出两条规则：
-文件名与 `id` 不一致时，`pcp validate` 报 `idea-filename-mismatch`
-WARNING，不阻断，改名即可；`pcp ideas` 的最后一行给出下一个可用的
-`IDEA-<NNNN>`，编号同时参考已加载的 id 与磁盘上的文件名，因此永远不会
-指向一个已存在的文件。
+想法层有一条贯穿的规则：**`id` 是身份，文件名只是索引。**具体到工具行为：
+
+- 文件名与文件内的 `id` 不一致时，`pcp validate` 报
+  `idea-filename-mismatch` 警告，不阻断，改名即可。
+- `pcp ideas` 的最后一行会提示下一个可用的编号（`IDEA-<NNNN>`）。分配时
+  同时参考已加载的 id 与磁盘上现有的文件名，所以它永远不会指向一个已经
+  存在的文件。
 
 ## 规划模型
 

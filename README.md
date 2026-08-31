@@ -203,9 +203,8 @@ to keep in sync.
 
 ## Idea Layer
 
-Planning nodes are a *post-decision* control system: a node exists because
-something was already committed to. The idea layer carries what comes
-before that: captured thinking that does not yet qualify for the plan.
+Planning nodes are for work that is already planned; the idea layer
+records ideas that are not yet planned.
 
 ```
 .planning/ideas/IDEA-0007.yaml     # one file per idea (directly under ideas/, .yaml suffix)
@@ -247,13 +246,15 @@ Four properties are deliberate:
 The generated site gets an `ideas.html` page and a sidebar entry, but only
 when the project actually has ideas.
 
-One rule runs through the idea layer: the `id` is the identity, the file
-name is only an index. Two consequences follow. When a file name does not
-match its `id`, `pcp validate` reports the `idea-filename-mismatch`
-WARNING (advisory, never blocking); rename the file to fix it. And the last
-line of `pcp ideas` prints the next free `IDEA-<NNNN>`, computed from both
-loaded ids and the file names on disk, so it never points at a file that
-already exists.
+One rule runs through the idea layer: **the `id` is the identity, the file
+name is only an index.** Concretely, in tool behavior:
+
+- When a file name does not match the `id` inside the file, `pcp validate`
+  reports the `idea-filename-mismatch` WARNING (advisory, never blocking);
+  rename the file to fix it.
+- The last line of `pcp ideas` prints the next free `IDEA-<NNNN>`, computed
+  from both loaded ids and the file names on disk, so it never points at a
+  file that already exists.
 
 ## Planning Model
 
