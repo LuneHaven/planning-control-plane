@@ -213,11 +213,15 @@
   /* ------------------------------------------------------ planning tree --- */
 
   var branches = Array.prototype.slice.call(
-    document.querySelectorAll('.treeitem[aria-expanded]')
+    document.querySelectorAll('.treeitem[data-expanded]')
   );
 
   function setExpanded(item, expanded) {
-    item.setAttribute("aria-expanded", expanded ? "true" : "false");
+    // Collapse state lives on data-expanded, not aria-expanded (IDEA-0004):
+    // the items are plain list elements now, and aria-expanded on an
+    // element with no corresponding role is invalid ARIA. The disclosure
+    // button below keeps its real aria-expanded.
+    item.setAttribute("data-expanded", expanded ? "true" : "false");
     var toggle = item.querySelector(":scope > .treeitem-row > .tree-toggle");
     if (toggle && toggle.tagName === "BUTTON") {
       toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -227,7 +231,7 @@
   function persist() {
     var collapsed = [];
     branches.forEach(function (item) {
-      if (item.getAttribute("aria-expanded") === "false") {
+      if (item.getAttribute("data-expanded") === "false") {
         collapsed.push(item.getAttribute("data-node-id"));
       }
     });
@@ -262,7 +266,7 @@
       }
       toggle.addEventListener("click", function (event) {
         event.preventDefault();
-        setExpanded(item, item.getAttribute("aria-expanded") !== "true");
+        setExpanded(item, item.getAttribute("data-expanded") !== "true");
         persist();
       });
     });

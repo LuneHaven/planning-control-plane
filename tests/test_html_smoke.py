@@ -66,8 +66,10 @@ def test_every_page_has_authority_footer_and_tree(built_site, page_name):
     assert FOOTER_OWNERSHIP in text
     assert "Planning Control Plane" in text
 
-    # the planning navigation is an ARIA tree
-    assert 'role="tree"' in text
+    # the planning navigation is a plain nested list (IDEA-0004 option B:
+    # no ARIA tree semantics without the keyboard model that role promises)
+    assert 'id="planning-tree"' in text
+    assert 'role="tree"' not in text
     # every node id appears in the sidebar tree
     for node_id in DEMO_NODE_IDS:
         assert node_id in text
@@ -315,7 +317,7 @@ def test_sidebar_marks_current_focus_with_its_own_visual_system(built_site):
     _project, dist = built_site
     text = (dist / "index.html").read_text(encoding="utf-8")
 
-    focus_item = re.search(r'<li role="treeitem"[^>]*class="[^"]*is-focus[^"]*"', text)
+    focus_item = re.search(r'<li [^>]*class="[^"]*is-focus[^"]*"', text)
     assert focus_item
     # the focus marker must be visible text, not colour-only (spec §29)
     assert re.search(r'class="focus-pill"[^>]*>\s*focus\s*<', text)
@@ -325,18 +327,44 @@ def test_sidebar_marks_current_focus_with_its_own_visual_system(built_site):
 
 
 def test_sidebar_tree_has_no_redundant_tab_stops(built_site):
-    """Spec §43/§44: branch rows expose a real toggle button; the treeitems
-    themselves are no longer 15 extra tab stops."""
+    """Spec §43/§44: branch rows expose a real toggle button; the list items
+    themselves are not tab stops — only links and buttons are."""
     _project, dist = built_site
     text = (dist / "index.html").read_text(encoding="utf-8")
 
-    assert 'role="treeitem" tabindex' not in text
+    assert not re.search(r"<li[^>]*tabindex", text)
     toggles = re.findall(r'<button type="button" class="tree-toggle"[^>]*>', text)
     assert toggles, "branch rows need a toggle button"
     for toggle in toggles:
         assert 'aria-expanded=' in toggle
         assert 'aria-controls=' in toggle
         assert 'aria-label=' in toggle
+
+
+@pytest.mark.parametrize("page_name", ["index.html"] + [f"nodes/{n}.html" for n in DEMO_NODE_IDS])
+def test_sidebar_is_a_plain_nested_list_not_an_aria_tree(built_site, page_name):
+    """IDEA-0004 (option B): the sidebar must not promise what it delivers.
+
+    role="tree" switches screen readers into an application mode whose key
+    contract (roving tabindex, arrow keys, Home/End) the page never
+    implements — measured worse than declaring nothing. A sidebar that can
+    only link and fold branches is semantically a hierarchical navigation
+    list, so it is marked up as exactly that: plain nested lists plus
+    disclosure buttons.
+    """
+    text = (built_site[1] / page_name).read_text(encoding="utf-8")
+    sidebar = re.search(r'<aside class="sidebar".*?</aside>', text, re.DOTALL).group(0)
+
+    # no tree/group ARIA on the navigation itself
+    for absent in ('role="tree"', 'role="treeitem"', 'role="group"', "aria-level", "aria-setsize"):
+        assert absent not in sidebar, absent
+    # the collapse state hook moved off ARIA: branches carry data-expanded;
+    # aria-expanded lives on the disclosure buttons only
+    assert "data-expanded=" in sidebar
+    assert not re.search(r"<li[^>]*aria-expanded", sidebar)
+    # every disclosure button controls an id defined in the same page
+    for target in re.findall(r'aria-controls="([^"]+)"', sidebar):
+        assert f'id="{target}"' in sidebar, target
 
 
 def test_theme_css_supports_dark_mode(built_site):

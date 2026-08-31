@@ -18,6 +18,14 @@ follows SemVer (pre-1.0: breaking changes may land in a minor bump).
 - Two status colours moved off their neighbours' hue: IMPLEMENTING to
   teal (it was ΔE 2.4 from DISCUSSING) and WRITEBACK_DONE to olive (ΔE
   1.8 from READY). At badge size those pairs rendered as one colour.
+- The sidebar navigation is now a plain nested list instead of an ARIA
+  tree. It declared `role="tree"`, which switches screen readers into an
+  application mode whose key contract (roving tabindex, arrow keys) the
+  page never implemented — arrow keys died inside the sidebar, and
+  NVDA/JAWS were left with nothing. A sidebar that can only link and
+  fold branches is a hierarchical navigation list, so it is marked up
+  as one; the collapse state moved to `data-expanded` and the
+  disclosure buttons keep their `aria-expanded` / `aria-controls`.
 
 ### Fixed
 

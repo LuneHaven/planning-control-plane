@@ -49,9 +49,9 @@
 {% endif %}
     <nav class="sidebar-nav" aria-label="{{ t("site.sidebar_tree_label") }}" data-i18n-attr="aria-label=site.sidebar_tree_label">
 {% if tree %}
-      <ul role="tree" aria-label="{{ t("site.sidebar_tree_label") }}" data-i18n-attr="aria-label=site.sidebar_tree_label" class="tree" id="planning-tree">
+      <ul class="tree" id="planning-tree">
 {% for item in tree recursive %}
-        <li role="treeitem" class="treeitem{% if item.is_current %} is-current-page{% endif %}{% if item.is_focus %} is-focus{% endif %}" data-node-id="{{ item.id }}" data-status="{{ item.status.raw }}"{% if item.children %} aria-expanded="true"{% endif %}{% if item.is_current %} data-current-page="true"{% endif %}>
+        <li class="treeitem{% if item.is_current %} is-current-page{% endif %}{% if item.is_focus %} is-focus{% endif %}" data-node-id="{{ item.id }}" data-status="{{ item.status.raw }}"{% if item.children %} data-expanded="true"{% endif %}{% if item.is_current %} data-current-page="true"{% endif %}>
           <div class="treeitem-row">
 {% if item.children %}
             <button type="button" class="tree-toggle" aria-expanded="true" aria-controls="tg-{{ item.stem }}" aria-label="{{ item.id }}"><span class="tree-caret" aria-hidden="true"></span></button>
@@ -70,7 +70,7 @@
             </a>
           </div>
 {% if item.children %}
-          <ul role="group" id="tg-{{ item.stem }}">
+          <ul id="tg-{{ item.stem }}">
 {{ loop(item.children) }}
           </ul>
 {% endif %}

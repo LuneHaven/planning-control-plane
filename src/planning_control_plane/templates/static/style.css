@@ -418,7 +418,7 @@ th {
 
 /* One thin guide per level makes parent/child obvious without indentation
    guesswork (spec §16). */
-.tree ul[role="group"] {
+.tree ul {
   margin-left: 15px;
   padding-left: 8px;
   border-left: 1px solid var(--border);
@@ -464,11 +464,11 @@ th {
   transition: transform 120ms ease;
 }
 
-.treeitem[aria-expanded="true"] > .treeitem-row .tree-caret {
+.treeitem[data-expanded="true"] > .treeitem-row .tree-caret {
   transform: rotate(90deg);
 }
 
-.treeitem[aria-expanded="false"] > ul[role="group"] {
+.treeitem[data-expanded="false"] > ul {
   display: none;
 }
 
