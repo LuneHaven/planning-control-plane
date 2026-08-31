@@ -163,7 +163,10 @@ def _status_view(locale: str, status: str) -> dict:
 
     ``label`` is what a human reads, ``raw`` is the stored enum value that
     the CLI and the capsule use, and ``shape`` makes status legible without
-    relying on colour (spec §13, UI-D2). For ``en`` label equals raw, so
+    relying on colour (spec §13, UI-D2) — it is the id of an SVG symbol the
+    page inlines, which the template renders through the ``shape()`` macro;
+    autoescaping is on, so this layer deliberately hands over an id rather
+    than markup. For ``en`` label equals raw, so
     English pages never print the same value twice. ``i18n`` is the runtime
     translation key stamped on the badge so the browser can re-label it
     without a rebuild (V0.1.2 LANG-D1); it is ``None`` for values outside
@@ -172,7 +175,7 @@ def _status_view(locale: str, status: str) -> dict:
     return {
         "raw": status,
         "label": i18n.status_label(locale, status),
-        "shape": i18n.status_shape(status),
+        "shape": i18n.status_shape_id(status),
         "i18n": i18n.status_key(status),
     }
 
@@ -185,7 +188,7 @@ def _track_view(locale: str, key: str, value: str) -> dict:
         "label": i18n.translator(locale)(f"node.track.{key}"),
         "status_label": i18n.track_label(locale, value),
         "raw": raw,
-        "shape": i18n.track_shape(value),
+        "shape": i18n.track_shape_id(value),
         "i18n": i18n.track_key(value),
     }
 

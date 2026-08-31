@@ -58,10 +58,10 @@ __all__ = [
     "runtime_payload",
     "status_key",
     "status_label",
-    "status_shape",
+    "status_shape_id",
     "track_key",
     "track_label",
-    "track_shape",
+    "track_shape_id",
     "translator",
 ]
 
@@ -72,33 +72,47 @@ DEFAULT_LOCALE = "en"
 #: runtime language selector rendered in the topbar.
 SUPPORTED_LOCALES = ("en", "zh-CN")
 
-#: Shape glyph per overall status, so status is never colour-only
-#: (text + shape + colour, spec §13).
-_STATUS_SHAPES = {
-    NodeStatus.NOT_STARTED.value: "○",
-    NodeStatus.DISCUSSING.value: "◐",
-    NodeStatus.INVESTIGATING.value: "◐",
-    NodeStatus.DECIDED.value: "◐",
-    NodeStatus.WRITEBACK_PENDING.value: "◐",
-    NodeStatus.WRITEBACK_DONE.value: "◐",
-    NodeStatus.READY.value: "◐",
-    NodeStatus.IMPLEMENTING.value: "◐",
-    NodeStatus.BLOCKED.value: "▲",
-    NodeStatus.DONE.value: "●",
-    NodeStatus.DEFERRED.value: "◇",
+#: Shape per overall status, so status is never colour-only (text + shape
+#: + colour, spec §13). The values are ids of SVG symbols inlined in every
+#: page by ``_shapes.html``, not text glyphs: measured against the real
+#: 11px badge, the geometric characters this used to carry are drawn to
+#: incompatible sizes by the very fonts the offline stack falls back to
+#: (circles land at 8x7px, squares and triangles at 10x10, and U+25D4 at
+#: 8x5 is unreadable), and each font resolves them differently. Drawn
+#: shapes are the only way the shape dimension carries information.
+#:
+#: The eleven statuses form four groups, and the shapes say so: the
+#: decision run fills a ring (1/4 -> 1/2 -> 3/4), while the writeback and
+#: execution runs share one outline -> filled pairing (box, then
+#: triangle); the three terminal states each stand alone.
+_STATUS_SHAPE_IDS = {
+    NodeStatus.NOT_STARTED.value: "shape-ring",
+    NodeStatus.DISCUSSING.value: "shape-q1",
+    NodeStatus.INVESTIGATING.value: "shape-q2",
+    NodeStatus.DECIDED.value: "shape-q3",
+    NodeStatus.WRITEBACK_PENDING.value: "shape-box",
+    NodeStatus.WRITEBACK_DONE.value: "shape-box-filled",
+    NodeStatus.READY.value: "shape-tri-open",
+    NodeStatus.IMPLEMENTING.value: "shape-tri",
+    NodeStatus.BLOCKED.value: "shape-warn",
+    NodeStatus.DONE.value: "shape-disc",
+    NodeStatus.DEFERRED.value: "shape-diamond",
 }
 
-#: Shape glyph per track status (spec §34).
-_TRACK_SHAPES = {
-    TrackStatus.NOT_STARTED.value: "○",
-    TrackStatus.IN_PROGRESS.value: "◐",
-    TrackStatus.DONE.value: "●",
-    TrackStatus.NOT_APPLICABLE.value: "–",
+#: Shape per track status (spec §34). A track is a coarser three-step run,
+#: so it reuses the overall vocabulary: empty ring, half ring, filled disc.
+_TRACK_SHAPE_IDS = {
+    TrackStatus.NOT_STARTED.value: "shape-ring",
+    TrackStatus.IN_PROGRESS.value: "shape-q2",
+    TrackStatus.DONE.value: "shape-disc",
+    TrackStatus.NOT_APPLICABLE.value: "shape-dash",
 }
 
 #: Fallback shape for values outside the controlled enums (the loader keeps
-#: such values so ``pcp validate`` can report them).
-_UNKNOWN_SHAPE = "?"
+#: such values so ``pcp validate`` can report them). Concentric circles
+#: belong to no group above, which is the point: it should read as "this
+#: is not one of the known statuses".
+_UNKNOWN_SHAPE_ID = "shape-unknown"
 
 
 _EN: dict[str, str] = {
@@ -530,11 +544,11 @@ def track_label(locale: str, status: str) -> str:
     return translator(locale)(f"track.{status}") if f"track.{status}" in _EN else status
 
 
-def status_shape(status: str) -> str:
-    """Shape glyph for an overall status (locale independent)."""
-    return _STATUS_SHAPES.get(status, _UNKNOWN_SHAPE)
+def status_shape_id(status: str) -> str:
+    """SVG symbol id for an overall status (locale independent)."""
+    return _STATUS_SHAPE_IDS.get(status, _UNKNOWN_SHAPE_ID)
 
 
-def track_shape(status: str) -> str:
-    """Shape glyph for a track status (locale independent)."""
-    return _TRACK_SHAPES.get(status, _UNKNOWN_SHAPE)
+def track_shape_id(status: str) -> str:
+    """SVG symbol id for a track status (locale independent)."""
+    return _TRACK_SHAPE_IDS.get(status, _UNKNOWN_SHAPE_ID)

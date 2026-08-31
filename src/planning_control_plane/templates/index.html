@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_shapes.html" import shape %}
 {% block title %}{{ project_name }} · {{ t("site.tool") }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -13,7 +14,7 @@
     <p class="focus-eyebrow"><span class="focus-pill" title="{{ t("node.focus_title") }}" data-i18n="node.focus_flag" data-i18n-attr="title=node.focus_title">{{ t("node.focus_flag") }}</span><span class="eyebrow-label" id="focus-heading" data-i18n="dash.focus">{{ t("dash.focus") }}</span></p>
     <h2 class="focus-node"><a href="{{ focus.url }}"><span class="mono focus-node-id">{{ focus.id }}</span><span class="focus-node-title">{{ focus.title }}</span></a></h2>
     <p class="focus-line">
-      <span class="badge badge--lg" data-status="{{ focus.status.raw }}"><span class="shape" aria-hidden="true">{{ focus.status.shape }}</span><span{% if focus.status.i18n %} data-i18n="{{ focus.status.i18n }}"{% endif %}>{{ focus.status.label }}</span>{% if focus.status.i18n %} <span class="badge-raw mono">{{ focus.status.raw }}</span>{% endif %}</span>
+      <span class="badge badge--lg" data-status="{{ focus.status.raw }}">{{ shape(focus.status.shape) }}<span{% if focus.status.i18n %} data-i18n="{{ focus.status.i18n }}"{% endif %}>{{ focus.status.label }}</span>{% if focus.status.i18n %} <span class="badge-raw mono">{{ focus.status.raw }}</span>{% endif %}</span>
 {% if not attention.any %}
       <span class="chip chip--ok" data-i18n="dash.no_blockers">{{ t("dash.no_blockers") }}</span>
 {% endif %}
@@ -43,7 +44,7 @@
 {% for track in focus.tracks %}
     <div class="track">
       <dt data-i18n="node.track.{{ track.key }}">{{ track.label }}</dt>
-      <dd><span class="track-badge" data-track="{{ track.raw }}"><span class="shape" aria-hidden="true">{{ track.shape }}</span><span{% if track.i18n %} data-i18n="{{ track.i18n }}"{% endif %}>{{ track.status_label }}</span>{% if track.i18n %} <span class="badge-raw mono">{{ track.raw }}</span>{% endif %}</span></dd>
+      <dd><span class="track-badge" data-track="{{ track.raw }}">{{ shape(track.shape) }}<span{% if track.i18n %} data-i18n="{{ track.i18n }}"{% endif %}>{{ track.status_label }}</span>{% if track.i18n %} <span class="badge-raw mono">{{ track.raw }}</span>{% endif %}</span></dd>
     </div>
 {% endfor %}
   </dl>
@@ -76,7 +77,7 @@
 {# -------------------------------------------------------- needs attention #}
 {% if attention.any %}
 <section class="panel panel--exception" id="attention" aria-labelledby="attention-heading">
-  <h2 id="attention-heading"><span class="exception-icon" aria-hidden="true">▲</span><span data-i18n="dash.attention">{{ t("dash.attention") }}</span></h2>
+  <h2 id="attention-heading">{{ shape("shape-warn", "exception-icon") }}<span data-i18n="dash.attention">{{ t("dash.attention") }}</span></h2>
 {% if attention.blocking_rows %}
   <h3><span data-i18n="dash.attention.blocking">{{ t("dash.attention.blocking") }}</span> <span class="count">{{ attention.blocking_count }}</span></h3>
   <div class="table-scroll">
@@ -102,7 +103,7 @@
   <h3><span data-i18n="dash.attention.blocked">{{ t("dash.attention.blocked") }}</span> <span class="count">{{ attention.blocked_nodes | length }}</span></h3>
   <ul class="ref-list">
 {% for ref in attention.blocked_nodes %}
-    <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
+    <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
 {% endfor %}
   </ul>
 {% endif %}
@@ -112,7 +113,7 @@
 {% for ref in attention.deferred_deps %}
     <li>
 {% if ref.known %}
-      <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
+      <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
 {% else %}
       <span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted" data-i18n="node.rel.unknown">{{ t("node.rel.unknown") }}</span>
 {% endif %}
@@ -142,7 +143,7 @@
 {% for ref in branch.siblings %}
     <li class="branch-item{% if ref.is_current %} is-current{% endif %}">
       <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
-      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
+      <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
     </li>
 {% endfor %}
   </ul>
@@ -153,7 +154,7 @@
 {% for ref in branch.children %}
     <li class="branch-item">
       <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
-      <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
+      <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>
     </li>
 {% endfor %}
   </ul>
@@ -185,7 +186,7 @@
 {% if next_queue %}
     <ul class="ref-list">
 {% for ref in next_queue %}
-      <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}"><span class="shape" aria-hidden="true">{{ ref.status.shape }}</span><span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
+      <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
 {% endfor %}
     </ul>
 {% else %}
@@ -208,7 +209,7 @@
         <tr>
           <td class="mono nowrap">{{ row.date }}</td>
           <td><a href="{{ row.node.url }}"><span class="mono">{{ row.node.id }}</span> {{ row.node.title }}</a></td>
-          <td><span class="badge" data-status="{{ row.node.status.raw }}"><span class="shape" aria-hidden="true">{{ row.node.status.shape }}</span><span{% if row.node.status.i18n %} data-i18n="{{ row.node.status.i18n }}"{% endif %}>{{ row.node.status.label }}</span></span></td>
+          <td><span class="badge" data-status="{{ row.node.status.raw }}">{{ shape(row.node.status.shape) }}<span{% if row.node.status.i18n %} data-i18n="{{ row.node.status.i18n }}"{% endif %}>{{ row.node.status.label }}</span></span></td>
         </tr>
 {% endfor %}
       </tbody>

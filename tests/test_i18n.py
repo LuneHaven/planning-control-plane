@@ -53,20 +53,40 @@ def test_chinese_labels_differ_from_the_enum_and_are_distinct():
 
 
 def test_every_status_has_its_own_shape_and_shapes_are_locale_independent():
-    """Spec §13: text + shape + colour, and the shape never depends on locale."""
-    for status in NodeStatus:
-        assert i18n.status_shape(status.value) in {"○", "◐", "●", "▲", "◇"}
-    assert i18n.status_shape(NodeStatus.DONE.value) == "●"
-    assert i18n.status_shape(NodeStatus.BLOCKED.value) == "▲"
-    assert i18n.status_shape(NodeStatus.NOT_STARTED.value) == "○"
-    assert i18n.status_shape(NodeStatus.DEFERRED.value) == "◇"
+    """Spec §13: text + shape + colour, and the shape never depends on locale.
+
+    The distinctness assert is the point of this test, and it is new: the
+    previous version only checked that each shape came from a five-glyph
+    set, which eleven statuses cannot fill — seven of them shared one
+    glyph and the gate never noticed (IDEA-0003). Labels a few lines up
+    were always pinned this way; shapes now are too.
+    """
+    shapes = {status.value: i18n.status_shape_id(status.value) for status in NodeStatus}
+    assert len(set(shapes.values())) == len(shapes)  # no two statuses share a shape
+    assert shapes[NodeStatus.DONE.value] == "shape-disc"
+    assert shapes[NodeStatus.BLOCKED.value] == "shape-warn"
+    assert shapes[NodeStatus.NOT_STARTED.value] == "shape-ring"
+    assert shapes[NodeStatus.DEFERRED.value] == "shape-diamond"
+
+    # The three runs read as runs: the decision states fill one ring.
+    assert shapes[NodeStatus.DISCUSSING.value] == "shape-q1"
+    assert shapes[NodeStatus.INVESTIGATING.value] == "shape-q2"
+    assert shapes[NodeStatus.DECIDED.value] == "shape-q3"
+
+
+def test_track_shapes_are_distinct_and_reuse_the_status_vocabulary():
+    """A track is a coarser run (spec §34), drawn from the same shapes."""
+    shapes = {status.value: i18n.track_shape_id(status.value) for status in TrackStatus}
+    assert len(set(shapes.values())) == len(shapes)
+    assert shapes[TrackStatus.NOT_APPLICABLE.value] == "shape-dash"
 
 
 def test_unknown_enum_values_degrade_instead_of_raising():
     """The generator projects invalid data defensively (spec §37)."""
     assert i18n.status_label("zh-CN", "MADE_UP") == "MADE_UP"
     assert i18n.track_label("zh-CN", "MADE_UP") == "MADE_UP"
-    assert i18n.status_shape("MADE_UP") == "?"
+    assert i18n.status_shape_id("MADE_UP") == "shape-unknown"
+    assert i18n.track_shape_id("MADE_UP") == "shape-unknown"
 
 
 # ---------------------------------------------------------- the translator

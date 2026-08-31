@@ -1,3 +1,4 @@
+{% from "_shapes.html" import sprite, shape %}
 <!DOCTYPE html>
 <html lang="{{ html_lang }}" data-locale="{{ locale }}">
 <head>
@@ -32,6 +33,7 @@
   <link rel="stylesheet" href="{{ base.assets }}style.css">
 </head>
 <body>
+{{ sprite() }}
 <a class="skip-link" href="#main-content" data-i18n="site.skip">{{ t("site.skip") }}</a>
 <div class="layout">
   <aside class="sidebar" id="sidebar" aria-label="{{ t("site.sidebar_tree_label") }}" data-i18n-attr="aria-label=site.sidebar_tree_label">
@@ -62,7 +64,7 @@
 {% if item.is_focus %}
                 <span class="focus-pill" title="{{ t("node.focus_title") }}" data-i18n="node.focus_flag" data-i18n-attr="title=node.focus_title">{{ t("node.focus_flag") }}</span>
 {% endif %}
-                <span class="badge" data-status="{{ item.status.raw }}"><span class="shape" aria-hidden="true">{{ item.status.shape }}</span><span{% if item.status.i18n %} data-i18n="{{ item.status.i18n }}"{% endif %}>{{ item.status.label }}</span></span>
+                <span class="badge" data-status="{{ item.status.raw }}">{{ shape(item.status.shape) }}<span{% if item.status.i18n %} data-i18n="{{ item.status.i18n }}"{% endif %}>{{ item.status.label }}</span></span>
               </span>
               <span class="tree-title">{{ item.title }}</span>
             </a>
@@ -93,7 +95,7 @@
   <div class="frame">
     <header class="topbar">
       <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="false">
-        <span aria-hidden="true">☰</span><span data-i18n="site.tree">{{ t("site.tree") }}</span>
+        {{ shape("shape-menu", "shape--menu") }}<span data-i18n="site.tree">{{ t("site.tree") }}</span>
       </button>
       <span class="topbar-project">{{ project_name }}</span>
       {# Global utility layer, right of the topbar. The order is fixed:

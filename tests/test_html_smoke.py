@@ -14,8 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from planning_control_plane import generator
+from planning_control_plane import generator, i18n
 from planning_control_plane.loader import load_project
+from planning_control_plane.model import NodeStatus, TrackStatus
 
 #: Footer authority boundary (spec §28).
 FOOTER_BOUNDARY = "This view is authoritative only for planning structure and planning progress."
@@ -223,14 +224,14 @@ def test_node_page_track_status_shows_na(built_site):
     # raw chip is always in the document (hidden under `en` by the
     # stylesheet, shown under every other locale).
     for label, key, raw, shape in (
-        ("Discussion", "discussion", "NOT_STARTED", "○"),
-        ("Writeback", "writeback", "N/A", "–"),
-        ("Implementation", "implementation", "N/A", "–"),
+        ("Discussion", "discussion", "NOT_STARTED", "shape-ring"),
+        ("Writeback", "writeback", "N/A", "shape-dash"),
+        ("Implementation", "implementation", "N/A", "shape-dash"),
     ):
         pattern = (
             rf"<dt data-i18n=\"node\.track\.{key}\">{label}</dt>\s*"
             rf"<dd><span class=\"track-badge\" data-track=\"{re.escape(raw)}\">"
-            rf"<span class=\"shape\" aria-hidden=\"true\">{shape}</span>"
+            rf"<svg class=\"shape\" aria-hidden=\"true\"><use href=\"#{shape}\"/></svg>"
             rf"<span data-i18n=\"[^\"]*\">{re.escape(raw)}</span>"
             rf" <span class=\"badge-raw mono\">{re.escape(raw)}</span></span>"
         )
@@ -344,3 +345,47 @@ def test_theme_css_supports_dark_mode(built_site):
     css = (dist / "assets" / "style.css").read_text(encoding="utf-8")
     assert ":root" in css  # light tokens
     assert "@media (prefers-color-scheme: dark)" in css  # dark variant
+
+
+# ------------------------------------------------------------ shape sprite
+
+
+@pytest.mark.parametrize("page_name", ["index.html"] + [f"nodes/{n}.html" for n in DEMO_NODE_IDS])
+def test_every_shape_reference_resolves_within_its_own_page(built_site, page_name):
+    """IDEA-0003: status shapes are `<use href="#id">` into an inlined sprite.
+
+    Both halves of that sentence need a gate, because both fail *silently*
+    — a `<use>` pointing at an id the document does not define renders
+    nothing at all, with no console error and no layout gap:
+
+    1. The sprite must be inlined in every page. It cannot be a shared
+       asset: under file://, where these pages are meant to open, the
+       same-origin policy blocks `<use href="sprite.svg#id">` (measured:
+       external bbox 0, inline bbox 27).
+    2. Every referenced id must exist in that same page, so a typo or a
+       new status without a symbol fails here rather than shipping a badge
+       with an invisible shape.
+    """
+    text = (built_site[1] / page_name).read_text(encoding="utf-8")
+
+    assert 'class="svg-sprite"' in text, "the sprite is not inlined in this page"
+    defined = set(re.findall(r'<symbol id="([^"]+)"', text))
+    referenced = set(re.findall(r'<use href="#([^"]+)"', text))
+    assert referenced, "a page with a planning tree always draws shapes"
+    assert referenced <= defined, sorted(referenced - defined)
+
+
+def test_status_and_track_shapes_all_have_a_symbol():
+    """The sprite is authored by hand, the ids come from `i18n`: pin that
+    every value the projection can emit is actually drawn, including the
+    out-of-enum fallback."""
+    sprite = (
+        Path(__file__).resolve().parent.parent
+        / "src" / "planning_control_plane" / "templates" / "_shapes.html"
+    ).read_text(encoding="utf-8")
+    defined = set(re.findall(r'<symbol id="([^"]+)"', sprite))
+
+    emitted = {i18n.status_shape_id(s.value) for s in NodeStatus}
+    emitted |= {i18n.track_shape_id(t.value) for t in TrackStatus}
+    emitted.add(i18n.status_shape_id("NOT_A_STATUS"))
+    assert emitted <= defined, sorted(emitted - defined)

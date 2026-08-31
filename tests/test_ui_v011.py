@@ -174,14 +174,17 @@ def test_node_header_and_tracks_show_label_plus_raw_enum(zh_site):
             in head
         ), key
     # the shape is there too: text + shape + colour
-    assert '<span class="shape" aria-hidden="true">○</span>' in head
+    assert '<svg class="shape" aria-hidden="true"><use href="#shape-ring"/>' in head
 
 
 def test_sidebar_and_tables_show_the_label_only(zh_site):
     """UI-D2: compact places carry the localized label, without the enum."""
     page = _page(zh_site, "index.html")
     sidebar = re.search(r'<aside class="sidebar".*?</aside>', page, re.DOTALL).group(0)
-    assert '<span class="shape" aria-hidden="true">○</span><span data-i18n="status.NOT_STARTED">未开始</span></span>' in sidebar
+    assert (
+        '<svg class="shape" aria-hidden="true"><use href="#shape-ring"/></svg>'
+        '<span data-i18n="status.NOT_STARTED">未开始</span></span>'
+    ) in sidebar
     assert "badge-raw" not in sidebar
     # ... but the raw value is still the machine-readable attribute
     assert 'data-status="NOT_STARTED"' in sidebar
@@ -200,7 +203,9 @@ def test_blocking_section_renders_as_an_exception_when_present(zh_site):
     page = _page(zh_site, "nodes/BLOCKED-ONE.html")
     section = _section(page, "blocking-heading")
     assert "panel--exception" in section
-    assert '<span class="exception-icon" aria-hidden="true">▲</span>' in section
+    assert (
+        '<svg class="shape exception-icon" aria-hidden="true"><use href="#shape-warn"/>'
+    ) in section
     assert "BD-1" in section
     assert '<span class="count">1</span>' in section
 
