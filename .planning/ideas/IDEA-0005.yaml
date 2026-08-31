@@ -1,0 +1,50 @@
+id: IDEA-0005
+title: 全局 list-style 重置使 WebKit 丢掉所有列表的语义
+status: OPEN
+detail: |
+  2026-09-01 在验证 IDEA-0004 的实现时发现，范围超出侧栏树，单独记一条。
+
+  style.css:195 有一条全局重置：
+
+      ul,
+      ol {
+        list-style: none;
+      }
+
+  WebKit 自 2020 年起，对 list-style 为 none 的列表会从 accessibility
+  tree 里移除 list / listitem 语义（Safari 团队的有意设计：视觉上不像
+  列表的东西不该播报成列表）。这条重置命中项目里的每一个列表，因此在
+  Safari + VoiceOver 下，以下列表的「共几项、第几项」全部不再播报：
+
+  - node.html:11 面包屑 <ol>（层级深度正是它要传达的信息）
+  - node.html 的 scope-list（本轮要做 / 不做）、decision-list（决策）、
+    ref-list（依赖 / 阻塞 / 相关）、source-list（来源文档）
+  - index.html 的 ref-list、branch-list
+  - ideas.html 的 idea-list、idea-sources
+
+  已处理的部分：侧栏树的两处 <ul> 已补 role="list"，因为 IDEA-0004 的
+  B 方案把层级表达完全交给了嵌套列表，那里的语义丢失会直接击穿该方案
+  的前提。其余列表本条待办。
+
+  缓解因素（所以定为待办而非缺陷）：上面多数列表旁边已有显式计数
+  （<span class="count">2</span> 之类），数量信息有文字冗余；真正没有
+  替代表达的是面包屑的层级深度和 scope 两栏的边界。
+
+  可选做法：
+  A. 给需要语义的 <ul>/<ol> 逐个补 role="list"。业界标准做法，改动
+     机械但要逐个判断哪些列表承载信息、哪些纯装饰（例如 idea-sources
+     可能算装饰）。约 20 处。
+  B. 收窄全局重置，改为只对确实不需要列表语义的类去 list-style，让其余
+     列表保留原生标记再用其他方式隐藏。风险是要重新核对每处的视觉。
+
+  倾向 A：显式、可被门禁锁住（侧栏那两处已加断言），且不动视觉。
+
+  尚未确认：本机只有 Chromium，无法实测 VoiceOver 的实际播报。上述
+  WebKit 行为来自公开记录而非本仓库实测，落地前值得在真机 Safari 上
+  确认一次，至少确认面包屑与 scope 两栏。
+relates_to: []
+benchmark_sources: []
+methodology_sources:
+  - note: WebKit 对 list-style:none 移除列表语义是有意行为，公开记录见 Scott O'Hara "Fixing Lists"；标准修复是在列表上显式声明 role="list"
+created: 2026-09-01
+last_updated: 2026-09-01

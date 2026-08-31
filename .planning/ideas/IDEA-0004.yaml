@@ -85,6 +85,27 @@ detail: |
   全部收起/当前页分支强制展开全部照常；语言切换与形状渲染不受影响。
   「仍待确认」项保持开放：结构上层级已由嵌套 ul 承担，但屏幕阅读器
   实听播报是否足以表达父子深度，需要真实 SR 会话验证。
+  ── 补充（2026-09-01，实现后验证发现）─────────────────────────
+
+  B 方案落地后复核，发现它的前提有个漏洞：方案把层级表达完全交给嵌套
+  <ul>，而 style.css:195 有一条全局重置 `ul, ol { list-style: none }`，
+  WebKit 对 list-style 为 none 的列表会移除 list / listitem 语义。也就
+  是说，在 Safari + VoiceOver 下，去掉 role="tree" 之后层级不是「由嵌套
+  列表承担」，而是没人承担——比原状态更糟。
+
+  这正是本条原先写的「仍待确认：屏幕阅读器的列表播报是否足以表达父子
+  深度」，答案是：在 WebKit 上不足，除非显式声明。
+
+  已处理：侧栏的两处 <ul> 补上 role="list"（恢复原生语义，不是引入
+  widget role，与 B 方案一致），并加了门禁——把属性删掉会让
+  test_sidebar_is_a_plain_nested_list_not_an_aria_tree 失败，验证过。
+
+  同一条重置影响全站所有列表（面包屑 <ol>、scope / decision / ref /
+  source / branch / idea 各列表），范围超出本条，另记 [[IDEA-0005]]。
+
+  仍未实测：本机只有 Chromium，Element.computedRole 也不可用，无法直接
+  读 accessibility tree。上述 WebKit 行为依据公开记录，不是本仓库实测。
+
 relates_to: []
 benchmark_sources: []
 methodology_sources:
