@@ -54,11 +54,17 @@ detail: |
       首次「Context Capsule（上下文胶囊）」，之后上下文胶囊；Current
       Focus 写「当前焦点（Current Focus）」；AI 工具统称 AI coding
       harness，不与 agent 混称，会话实例称「AI 会话」。
+  17. 处所语义选虚词：状态用「留在」（对应英文 in），位移终点用
+      「写进 / 存进」（对应 into）；「留到」只接时间（「留到明天
+      再说」），接处所时读者需按时间词预期再回读成趋向补语，且
+      自带「搁置延后」义，与「立刻持久化」的主张相反。
 
   第 1-11 条已应用于 README.zh-CN.md 与 README.md（2026-09-01 第一轮，
   两份同步修订）；第 12-14 条来自同日第二轮中文收口，第 15-16 条来自
   第三轮（CLI 信息密度与术语写法），均仅应用于 README.zh-CN.md，
-  README.md 尚待按新版结构整体同步。
+  README.md 尚待按新版结构整体同步。第 17 条来自同日 tagline 措辞
+  推敲（留到→留在），已应用于 README.zh-CN.md 首句；英文 tagline
+  本用 in，无需改动。
   后续新增文档（规范、教程、示例 README）可按同一基线写作；若要固化，
   可考虑沉淀为 docs 下的风格说明或并入 AGENTS.md 的仓库规则段。
 relates_to: []
