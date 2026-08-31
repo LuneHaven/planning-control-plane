@@ -74,19 +74,15 @@ tracker; PCP only manages the planning process.
 
 ## Installation
 
-PCP is not yet on PyPI; install from source (Python 3.11+). System Python
-installs on many distributions are externally managed (PEP 668), so use a
-virtual environment:
+Requires Python 3.11+. Recommended installers are pipx or uv (isolated
+environments, no PEP 668 externally-managed issues):
 
 ```bash
-git clone https://github.com/LuneHaven/planning-control-plane.git   # or download and extract the source
-cd planning-control-plane
-python3 -m venv .venv
-source .venv/bin/activate        # Windows PowerShell: .venv\Scripts\activate
-pip install -e .
+pipx install planning-control-plane     # or: uv tool install planning-control-plane
 pcp --help
 ```
 
+`pip install planning-control-plane` works too (prefer a virtual environment).
 Runtime dependencies are just PyYAML and Jinja2.
 
 ## Quick Start
@@ -435,8 +431,8 @@ Every generated page states this in its footer.
 
 **Current release: V0.1.3** is a usable MVP validated through real-project
 self-use: the engine, CLI, validator, capsule and bilingual UI all work, and
-the automated test suite has 409 tests. PCP is **not yet published on PyPI**;
-install from source as shown above.
+the automated test suite has 409 tests. Install from
+[PyPI](https://pypi.org/project/planning-control-plane/) as shown above.
 
 ## Roadmap
 

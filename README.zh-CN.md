@@ -64,19 +64,16 @@ PCP 是一个命令行工具：把 AI 协作项目的规划过程（目标、决
 
 ## 安装
 
-PCP 尚未发布到 PyPI，请从源码安装（需要 Python 3.11+）。许多发行版的
-系统 Python 受 PEP 668 externally-managed 限制，建议使用虚拟环境：
+需要 Python 3.11+。推荐用 pipx 或 uv 安装（独立环境，不受 PEP 668
+externally-managed 限制）：
 
 ```bash
-git clone https://github.com/LuneHaven/planning-control-plane.git   # 或下载并解压源码
-cd planning-control-plane
-python3 -m venv .venv
-source .venv/bin/activate        # Windows PowerShell: .venv\Scripts\activate
-pip install -e .
+pipx install planning-control-plane     # 或：uv tool install planning-control-plane
 pcp --help
 ```
 
-运行时依赖只有 PyYAML 和 Jinja2。
+`pip install planning-control-plane` 也可以（建议放在虚拟环境里）。运行时
+依赖只有 PyYAML 和 Jinja2。
 
 ## 快速开始
 
@@ -390,9 +387,10 @@ PCP 的权威仅限**规划结构与规划进度**。产品、治理、架构与
 
 ## 当前状态
 
-**当前版本：V0.1.3**，已达到可用 MVP 阶段，并在真实项目中完成自用验证：
-引擎、CLI、校验器、capsule 与双语界面均已可用，自动化测试共 409 项。
-PCP **尚未发布到 PyPI**：请按上文从源码安装。
+**当前版本：V0.1.3**（已发布到
+[PyPI](https://pypi.org/project/planning-control-plane/)），已达到可用 MVP
+阶段，并在真实项目中完成自用验证：引擎、CLI、校验器、capsule 与双语界面
+均已可用，自动化测试共 409 项。
 
 ## 路线图
 
