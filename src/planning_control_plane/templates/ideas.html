@@ -11,7 +11,7 @@
     <span class="idea-badge badge badge--lg" data-idea-status="{{ group.status.raw }}"><span{% if group.status.i18n %} data-i18n="{{ group.status.i18n }}"{% endif %}>{{ group.status.label }}</span>{% if group.status.i18n %} <span class="badge-raw mono">{{ group.status.raw }}</span>{% endif %}</span>
     <span class="count" data-i18n="ideas.group_count" data-i18n-args='{{ {"n": group.count} | tojson }}'>{{ t("ideas.group_count", n=group.count) }}</span>
   </h2>
-  <ul class="idea-list">
+  <ul class="idea-list" role="list">
 {% for idea in group.ideas %}
     <li class="idea-card" data-idea-id="{{ idea.id }}">
       <div class="idea-head">
@@ -25,7 +25,7 @@
         <dt data-i18n="ideas.benchmark">{{ t("ideas.benchmark") }}</dt>
         <dd>
 {% if idea.benchmark_sources %}
-          <ul class="idea-sources">
+          <ul class="idea-sources" role="list">
 {% for source in idea.benchmark_sources %}
             <li>{% if source.ref %}<span class="idea-source-ref mono">{{ source.ref }}</span>{% endif %}{% if source.note %}<span class="idea-source-note">{{ source.note }}</span>{% endif %}</li>
 {% endfor %}
@@ -37,7 +37,7 @@
         <dt data-i18n="ideas.methodology">{{ t("ideas.methodology") }}</dt>
         <dd>
 {% if idea.methodology_sources %}
-          <ul class="idea-sources">
+          <ul class="idea-sources" role="list">
 {% for source in idea.methodology_sources %}
             <li>{% if source.ref %}<span class="idea-source-ref mono">{{ source.ref }}</span>{% endif %}{% if source.note %}<span class="idea-source-note">{{ source.note }}</span>{% endif %}</li>
 {% endfor %}

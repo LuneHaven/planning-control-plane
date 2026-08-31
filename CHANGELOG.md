@@ -29,6 +29,12 @@ follows SemVer (pre-1.0: breaking changes may land in a minor bump).
 
 ### Fixed
 
+- Every list declares `role="list"`. The stylesheet resets `list-style`
+  to none globally, and WebKit drops list semantics from lists styled
+  that way, so under VoiceOver no list announced where it started,
+  ended, or how far in the reader was — the breadcrumb's depth and the
+  sidebar's nesting included. Nothing renders differently; the fix is
+  purely what assistive technology hears.
 - The narrow-screen sidebar button no longer wraps to two or three lines
   below 380px
 - The dashboard Progress panel lays its six counters out as 3 + 3 at

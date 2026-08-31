@@ -8,7 +8,7 @@
    already the H1 one line below. The complete title of every crumb — the
    current one included — stays available through the `title` attribute. #}
 <nav class="breadcrumb" aria-label="{{ t("node.breadcrumb") }}" data-i18n-attr="aria-label=node.breadcrumb">
-  <ol>
+  <ol role="list">
     <li><a class="crumb crumb--root" href="{{ base.index }}" title="{{ project_name }}">{{ project_name }}</a></li>
 {% for crumb in breadcrumb %}
     <li>
@@ -82,7 +82,7 @@
     <div class="scope-box scope-box--in">
       <h3>{{ shape("shape-check", "scope-icon") }}<span data-i18n="node.scope.in">{{ t("node.scope.in") }}</span> <span class="count">{{ node.scope | length }}</span></h3>
 {% if node.scope %}
-      <ul class="scope-list">
+      <ul class="scope-list" role="list">
 {% for item in node.scope %}        <li>{{ item }}</li>
 {% endfor %}      </ul>
 {% else %}
@@ -92,7 +92,7 @@
     <div class="scope-box scope-box--out">
       <h3>{{ shape("shape-cross", "scope-icon") }}<span data-i18n="node.scope.out">{{ t("node.scope.out") }}</span> <span class="count">{{ node.out_of_scope | length }}</span></h3>
 {% if node.out_of_scope %}
-      <ul class="scope-list">
+      <ul class="scope-list" role="list">
 {% for item in node.out_of_scope %}        <li>{{ item }}</li>
 {% endfor %}      </ul>
 {% else %}
@@ -111,7 +111,7 @@
 {% if node.blocking.shared_source %}
   <p class="group-source"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono" title="{{ node.blocking.shared_source }}">{{ node.blocking.shared_source }}</span></p>
 {% endif %}
-  <ul class="decision-list decision-list--blocking">
+  <ul class="decision-list decision-list--blocking" role="list">
 {% for decision in node.blocking.decisions %}
     <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-body"><span class="decision-summary">{{ decision.summary }}</span>{% if decision.show_source %}<span class="decision-source" title="{{ decision.source }}"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono">{{ decision.source_short }}</span></span>{% endif %}</span></li>
 {% endfor %}
@@ -125,7 +125,7 @@
 {% if node.open.shared_source %}
   <p class="group-source"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono" title="{{ node.open.shared_source }}">{{ node.open.shared_source }}</span></p>
 {% endif %}
-  <ul class="decision-list">
+  <ul class="decision-list" role="list">
 {% for decision in node.open.decisions %}
     <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-body"><span class="decision-summary">{{ decision.summary }}</span>{% if decision.show_source %}<span class="decision-source" title="{{ decision.source }}"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono">{{ decision.source_short }}</span></span>{% endif %}</span></li>
 {% endfor %}
@@ -142,7 +142,7 @@
 {% if node.frozen.shared_source %}
   <p class="group-source"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono" title="{{ node.frozen.shared_source }}">{{ node.frozen.shared_source }}</span></p>
 {% endif %}
-  <ul class="decision-list">
+  <ul class="decision-list" role="list">
 {% for decision in node.frozen.decisions %}
     <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-body"><span class="decision-summary">{{ decision.summary }}</span>{% if decision.show_source %}<span class="decision-source" title="{{ decision.source }}"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono">{{ decision.source_short }}</span></span>{% endif %}</span></li>
 {% endfor %}
@@ -161,7 +161,7 @@
       <span class="dgroup-source" data-i18n="node.decisions.sources_n" data-i18n-args='{{ {"n": group.group.source_count} | tojson }}'>{{ t("node.decisions.sources_n", n=group.group.source_count) }}</span>
 {% endif %}
     </summary>
-    <ul class="decision-list">
+    <ul class="decision-list" role="list">
 {% for decision in group.group.decisions %}
       <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-body"><span class="decision-summary">{{ decision.summary }}</span>{% if decision.show_source %}<span class="decision-source" title="{{ decision.source }}"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono">{{ decision.source_short }}</span></span>{% endif %}</span></li>
 {% endfor %}
@@ -182,7 +182,7 @@
       <span class="dgroup-source" title="{{ node.deferred.shared_source }}"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono">{{ node.deferred.shared_source_short }}</span></span>
 {% endif %}
     </summary>
-    <ul class="decision-list">
+    <ul class="decision-list" role="list">
 {% for decision in node.deferred.decisions %}
       <li class="decision"><span class="decision-id mono">{{ decision.id }}</span><span class="decision-body"><span class="decision-summary">{{ decision.summary }}</span>{% if decision.show_source %}<span class="decision-source" title="{{ decision.source }}"><span data-i18n="node.decisions.source">{{ t("node.decisions.source") }}</span> <span class="mono">{{ decision.source_short }}</span></span>{% endif %}</span></li>
 {% endfor %}
@@ -201,7 +201,7 @@
       <dt data-i18n="node.rel.depends">{{ t("node.rel.depends") }}</dt>
       <dd>
 {% if dependencies %}
-        <ul class="ref-list">
+        <ul class="ref-list" role="list">
 {% for ref in dependencies %}          <li>{% if ref.known %}<a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>{% else %}<span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted" data-i18n="node.rel.unknown">{{ t("node.rel.unknown") }}</span>{% endif %}</li>
 {% endfor %}        </ul>
 {% else %}
@@ -213,7 +213,7 @@
       <dt data-i18n="node.rel.blocks">{{ t("node.rel.blocks") }}</dt>
       <dd>
 {% if blocks %}
-        <ul class="ref-list">
+        <ul class="ref-list" role="list">
 {% for ref in blocks %}          <li>{% if ref.known %}<a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span>{% else %}<span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted" data-i18n="node.rel.unknown">{{ t("node.rel.unknown") }}</span>{% endif %}</li>
 {% endfor %}        </ul>
 {% else %}
@@ -225,7 +225,7 @@
       <dt data-i18n="node.rel.related">{{ t("node.rel.related") }}</dt>
       <dd>
 {% if related %}
-        <ul class="ref-list">
+        <ul class="ref-list" role="list">
 {% for ref in related %}          <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
 {% endfor %}        </ul>
 {% else %}
@@ -237,7 +237,7 @@
     <div class="rel-row">
       <dt data-i18n="node.rel.supersedes">{{ t("node.rel.supersedes") }}</dt>
       <dd>
-        <ul class="ref-list">
+        <ul class="ref-list" role="list">
 {% for ref in supersedes %}          <li>{% if ref.known %}<a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a>{% else %}<span class="unknown-ref mono">{{ ref.id }}</span> <span class="muted" data-i18n="node.rel.unknown">{{ t("node.rel.unknown") }}</span>{% endif %}</li>
 {% endfor %}        </ul>
       </dd>
@@ -247,7 +247,7 @@
     <div class="rel-row">
       <dt data-i18n="node.rel.superseded_by">{{ t("node.rel.superseded_by") }}</dt>
       <dd>
-        <ul class="ref-list">
+        <ul class="ref-list" role="list">
 {% for ref in superseded_by %}          <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a></li>
 {% endfor %}        </ul>
       </dd>
@@ -263,7 +263,7 @@
     <div>
       <h3 data-i18n="node.sources.canonical">{{ t("node.sources.canonical") }}</h3>
 {% if node.canonical_sources %}
-      <ul class="source-list">
+      <ul class="source-list" role="list">
 {% for source in node.canonical_sources %}        <li><span class="path mono">{{ source.path }}</span>{% if source.label %} <span class="src-tag" data-kind="{{ source.label }}">{{ source.label }}</span>{% endif %}</li>
 {% endfor %}      </ul>
 {% else %}
@@ -273,7 +273,7 @@
     <div>
       <h3 data-i18n="node.sources.evidence">{{ t("node.sources.evidence") }}</h3>
 {% if node.evidence_sources %}
-      <ul class="source-list">
+      <ul class="source-list" role="list">
 {% for source in node.evidence_sources %}        <li><span class="path mono">{{ source.path }}</span>{% if source.label %} <span class="src-tag" data-kind="{{ source.label }}">{{ source.label }}</span>{% endif %}</li>
 {% endfor %}      </ul>
 {% else %}

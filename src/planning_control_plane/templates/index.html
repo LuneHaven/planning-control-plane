@@ -101,7 +101,7 @@
 {% endif %}
 {% if attention.blocked_nodes %}
   <h3><span data-i18n="dash.attention.blocked">{{ t("dash.attention.blocked") }}</span> <span class="count">{{ attention.blocked_nodes | length }}</span></h3>
-  <ul class="ref-list">
+  <ul class="ref-list" role="list">
 {% for ref in attention.blocked_nodes %}
     <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
 {% endfor %}
@@ -109,7 +109,7 @@
 {% endif %}
 {% if attention.deferred_deps %}
   <h3><span data-i18n="dash.attention.deferred_deps">{{ t("dash.attention.deferred_deps") }}</span> <span class="count">{{ attention.deferred_deps | length }}</span></h3>
-  <ul class="ref-list">
+  <ul class="ref-list" role="list">
 {% for ref in attention.deferred_deps %}
     <li>
 {% if ref.known %}
@@ -139,7 +139,7 @@
 {% endif %}
 {% if branch.siblings %}
   <h3 data-i18n="dash.branch.siblings">{{ t("dash.branch.siblings") }}</h3>
-  <ul class="branch-list">
+  <ul class="branch-list" role="list">
 {% for ref in branch.siblings %}
     <li class="branch-item{% if ref.is_current %} is-current{% endif %}">
       <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
@@ -150,7 +150,7 @@
 {% endif %}
 {% if branch.children %}
   <h3 data-i18n="dash.branch.children">{{ t("dash.branch.children") }}</h3>
-  <ul class="branch-list">
+  <ul class="branch-list" role="list">
 {% for ref in branch.children %}
     <li class="branch-item">
       <a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> <span class="branch-title">{{ ref.title }}</span></a>
@@ -184,7 +184,7 @@
     <h2 id="queue-heading" data-i18n="dash.queue">{{ t("dash.queue") }}</h2>
     <p class="muted panel-hint" data-i18n="dash.queue.hint">{{ t("dash.queue.hint") }}</p>
 {% if next_queue %}
-    <ul class="ref-list">
+    <ul class="ref-list" role="list">
 {% for ref in next_queue %}
       <li><a href="{{ ref.url }}"><span class="mono">{{ ref.id }}</span> {{ ref.title }}</a> <span class="badge" data-status="{{ ref.status.raw }}">{{ shape(ref.status.shape) }}<span{% if ref.status.i18n %} data-i18n="{{ ref.status.i18n }}"{% endif %}>{{ ref.status.label }}</span></span></li>
 {% endfor %}

@@ -177,6 +177,17 @@ def test_ideas_page_is_generated_when_the_project_has_ideas(ideas_dist):
     assert (ideas_dist / "ideas.html").is_file()
 
 
+def test_ideas_page_lists_declare_their_list_role(ideas_dist):
+    """IDEA-0005, same gate as the other pages: the global
+    `ul, ol { list-style: none }` costs WebKit the list semantics, so every
+    list says `role="list"`. The idea cards and their source lists are
+    content, not decoration — how many sources back a thought is the
+    question the ideas page exists to answer."""
+    page = _page(ideas_dist, "ideas.html")
+    for markup in re.findall(r"<(?:ul|ol)[^>]*>", page):
+        assert 'role="list"' in markup, markup
+
+
 def test_ideas_page_groups_statuses_in_the_fixed_order(ideas_dist):
     page = _page(ideas_dist, "ideas.html")
     positions = [page.index(f'data-idea-group="{s}"') for s in ("OPEN", "PARKED", "PROMOTED", "DISCARDED")]

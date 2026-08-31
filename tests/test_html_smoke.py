@@ -342,6 +342,27 @@ def test_sidebar_tree_has_no_redundant_tab_stops(built_site):
 
 
 @pytest.mark.parametrize("page_name", ["index.html"] + [f"nodes/{n}.html" for n in DEMO_NODE_IDS])
+def test_every_list_declares_its_list_role(built_site, page_name):
+    """IDEA-0005: `ul, ol { list-style: none }` costs WebKit the semantics.
+
+    The reset is global, so *every* list here is affected — the breadcrumb
+    `<ol>` (whose item count is the depth of the path), scope, decisions,
+    references, sources, branches. WebKit drops list/listitem from any
+    list styled that way, and none of this project's lists is decorative,
+    so all of them say `role="list"` out loud.
+
+    The gate is deliberately blunt — every list, no exceptions — because
+    the failure is invisible: nothing renders differently, no console
+    warning fires, and every other test still passes while a screen
+    reader stops announcing where a list starts, ends, or how far in the
+    reader is. A new list added without the attribute fails here.
+    """
+    text = (built_site[1] / page_name).read_text(encoding="utf-8")
+    for markup in re.findall(r"<(?:ul|ol)[^>]*>", text):
+        assert 'role="list"' in markup, markup
+
+
+@pytest.mark.parametrize("page_name", ["index.html"] + [f"nodes/{n}.html" for n in DEMO_NODE_IDS])
 def test_sidebar_is_a_plain_nested_list_not_an_aria_tree(built_site, page_name):
     """IDEA-0004 (option B): the sidebar must not promise what it delivers.
 
