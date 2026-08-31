@@ -16,12 +16,13 @@ detail: |
   注意：CLI 命令名 pcp 与 Performance Co-Pilot 的概念撞名（PyPI 的 pcp
   包是它的绑定），实际 PATH 冲突风险低，接受。
 
-  进展（2026-09-01）：PyPI 账号已注册并开启 2FA；release workflow
-  （.github/workflows/release.yml，test → build → publish）与
-  CHANGELOG.md 已落地；版本定为 0.1.3（v0.1.2 tag 已推送，不可复用）。
-  待办：GitHub 建 pypi 环境 → PyPI 登记 pending publisher → 提交推送 →
-  打 v0.1.3 tag 触发发布 → 成功后改写两份 README 的安装节与
-  「尚未发布到 PyPI」表述。
+  进展（2026-09-01，已完成）：0.1.3 已发布到
+  https://pypi.org/project/planning-control-plane/ ，干净目录安装冒烟通过
+  （模板与 CLI 入口完整）；两份 README 安装节已改为 pipx / uv tool 安装。
+  过程中修了两处 CI 问题：workflow 需用 python -m pytest（tests 包导入
+  依赖根目录在 sys.path）；Topic :: Software Development :: Planning 不是
+  合法 Trove 分类器，已改为 Topic :: Software Development。
+  后续发布流程：改 pyproject version → 打 v* tag → 自动发布。
 relates_to: []
 benchmark_sources: []
 methodology_sources:
