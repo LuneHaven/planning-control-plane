@@ -65,6 +65,26 @@ detail: |
   优先级说明：按「承诺未兑现」的性质排，本条在 IDEA-0003 之前；按目标
   用户的实际使用频率排（状态 badge 每天都在扫），IDEA-0003 在前。两种
   排序都成立，尚未选定。
+
+  实现进展（2026-09-01，B 方案已落地）：排序问题随执行顺序自然解决——
+  0003 按频率排序先行完成，本条随后收口。改动面与预查一致：base.html
+  去掉 ul role="tree"（连带其冗余 aria-label，标签由外层 nav 承担）、
+  li role="treeitem"、ul role="group"；li 的折叠状态钩子 aria-expanded
+  迁到 data-expanded（app.js 全程类名选择，只动状态钩子的读写 4 处；
+  折叠 button 上的 aria-expanded / aria-controls 原样保留）；style.css
+  3 条选择器同位改写（嵌套参考线选择器改为 `.tree ul`，与上方
+  `.tree, .tree ul` 同特异性、靠源码顺序取胜）。测试面：原实现零覆盖
+  ——没有任何测试断言过 role="tree"，正是「承诺没人验证」的注脚；新增
+  test_sidebar_is_a_plain_nested_list_not_an_aria_tree（逐页断言侧栏无
+  tree/group ARIA、aria-expanded 不落在 li 上、aria-controls 目标均在
+  页内可解析），并翻转既有断言 3 处。fixture 发现一处此前误记：它不是
+  style.css 的全量镜像，而是「phase-1 段 + 后续无关改动的同位编辑」，
+  门禁按 marker 切头比对——所以本次轮换只对 3 条规则做同位编辑，不能
+  整文件拷贝（会把 idea-layer 段错误变成 phase-1 基线）。浏览器实测
+  （Chrome，file:// demo）：控制台零错误；点折叠/刷新恢复/全部展开/
+  全部收起/当前页分支强制展开全部照常；语言切换与形状渲染不受影响。
+  「仍待确认」项保持开放：结构上层级已由嵌套 ul 承担，但屏幕阅读器
+  实听播报是否足以表达父子深度，需要真实 SR 会话验证。
 relates_to: []
 benchmark_sources: []
 methodology_sources:
