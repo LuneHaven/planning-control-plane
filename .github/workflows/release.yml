@@ -1,0 +1,61 @@
+name: Release
+
+# Tag-triggered release with PyPI Trusted Publishing (OIDC).
+# One-time setup on the PyPI side: register this repository as a
+# pending publisher (owner/repo/workflow/environment must match exactly).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Run tests
+        run: pytest
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
