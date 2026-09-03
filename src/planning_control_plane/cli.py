@@ -1244,8 +1244,32 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _force_utf8_streams() -> None:
+    """Pin ``stdout``/``stderr`` to UTF-8 on every platform.
+
+    Windows encodes a **redirected** stdout with the ANSI code page (a
+    console gets UTF-8), so without this the em dash in the ``pcp agents``
+    snippet lands in AGENTS.md as a single non-UTF-8 byte — silently, exit
+    0 — and ``pcp context`` on a Chinese project dies with
+    ``UnicodeEncodeError`` under a Western code page. Everything this tool
+    reads and writes as a file is UTF-8; its stream output is too.
+
+    Streams that cannot be reconfigured (already replaced, or detached) are
+    left alone: this is a best-effort hardening, never a reason to fail.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8")
+        except (ValueError, OSError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``pcp`` console script."""
+    _force_utf8_streams()
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:

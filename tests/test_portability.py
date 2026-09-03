@@ -1,0 +1,75 @@
+"""Cross-platform gates (Windows in particular).
+
+The CLI is developed and released from Linux, so every platform assumption
+it makes is invisible here until a Windows user hits it. Each test below
+pins one such assumption by reproducing the Windows condition on any
+platform:
+
+* stdout encoding — Windows uses the ANSI code page for a *redirected*
+  stdout (a console gets UTF-8), so the documented
+  ``pcp agents >> AGENTS.md`` step silently writes non-UTF-8 bytes and a
+  Chinese capsule dies with ``UnicodeEncodeError``. Reproduced with
+  ``PYTHONIOENCODING``, which drives the same code path.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+
+import pytest
+
+from planning_control_plane import cli as cli_module
+
+
+def _run(*argv: str, encoding: str, cwd=None) -> subprocess.CompletedProcess:
+    """Run the CLI in a subprocess whose stdout uses *encoding*.
+
+    A subprocess is required: the ambient stdout encoding is exactly what is
+    under test, and the in-process ``cli`` fixture replaces the stream.
+    """
+    env = dict(os.environ, PYTHONIOENCODING=encoding)
+    return subprocess.run(
+        [sys.executable, "-m", "planning_control_plane.cli", *argv],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+    )
+
+
+def _utf8(raw: bytes, what: str) -> str:
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        pytest.fail(f"{what} is not valid UTF-8: {exc}")
+
+
+@pytest.mark.parametrize("encoding", ["cp1252", "cp936"])
+def test_agents_snippet_stays_utf8_under_a_legacy_stdout_encoding(encoding):
+    """``pcp agents >> AGENTS.md`` is the onboarding step ``pcp init``
+    prints, so it always redirects. The appended block must be UTF-8 — that
+    is how every AI harness reads AGENTS.md — no matter what encoding the
+    ambient stdout carries.
+    """
+    result = _run("agents", encoding=encoding)
+    assert result.returncode == 0
+    assert cli_module._AGENTS_SNIPPET in _utf8(result.stdout, "pcp agents stdout")
+
+
+def test_context_capsule_survives_a_legacy_stdout_encoding(make_project, node_dict, tmp_path):
+    """A Chinese project used from an English Windows: the capsule is
+    redirected into a file, and cp1252 cannot encode the node title. The
+    command must still succeed and emit UTF-8.
+    """
+    _project, root = make_project(
+        tmp_path,
+        config_dict={
+            "project": {"id": "t", "name": "T"},
+            "planning": {"current_focus": "P1"},
+        },
+        node_dicts=[node_dict("P1", title="中文标题", objective="验证编码")],
+    )
+    result = _run("-p", str(root), "context", "P1", encoding="cp1252")
+    assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
+    assert "中文标题" in _utf8(result.stdout, "pcp context stdout")
