@@ -109,6 +109,28 @@ detail: |
   并被 graduate 的 OSError 分支接住。这个判断没有实测。如果 CI 报红，
   改成显式跳过 Windows 即可。
 
+  ── Windows 实跑结果（2026-09-03，CI 二轮全绿）────────────────────
+
+  PR #1 首轮（run 33750417447）：ubuntu 两格通过；windows 两格各失败
+  两个用例，且都不是上面赌的那处。test_graduate 的只读回滚用例在
+  Windows 上通过，os.chmod(0o444) 的判断成立，无需回退。
+
+  首轮暴露的是同主题的另外两处测试侧问题，已补修（460e2fd、f7d66ed）：
+
+  1. 构建输入未受 -text 保护。generator 把 templates/static/* 原样
+     拷进 dist、.html 模板经 _write_text 渲染，_write_text 固定
+     newline 但剥不掉内容里已有的 \r。Windows 检出把 style.css 转成
+     CRLF 后直入产物，phase1 逐字节门禁随之失败。.gitattributes 增加
+     src/planning_control_plane/templates/** -text 一条。
+  2. conftest.write_planning 用文本模式落盘 raw_files 与 repo_files，
+     Windows 上 CRLF fixture 被翻译成 \r\r\n，focus 的 CRLF 保留用例
+     断言落空。落盘固定 newline=""，与 test_graduate 既有的
+     write_bytes 是同一语义。
+
+  验证：autocrlf=true 真实克隆下 cli.py 检出为 CRLF（1299 行含 CR，
+  证明转换确实生效），templates 与 fixtures 全部 0 个 CR。二轮
+  （run 33750940795）四格全绿，ubuntu 23-31s、windows 48-54s。
+
   入图需要先建节点：现有节点只有 A11Y-1、A11Y-2、A11Y-3，没有一个覆盖
   可移植性，所以 relates_to 暂时为空。
 relates_to: []
