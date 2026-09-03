@@ -84,12 +84,14 @@ def write_planning(
     for rel, text in (raw_files or {}).items():
         target = planning / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
+        # newline="" writes caller-authored text verbatim: text-mode default
+        # would turn a CRLF fixture into \r\r\n on Windows.
+        target.write_text(text, encoding="utf-8", newline="")
 
     for rel, text in (repo_files or {}).items():
         target = root / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8")
+        target.write_text(text, encoding="utf-8", newline="")
 
     return planning
 
