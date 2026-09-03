@@ -14,9 +14,13 @@ permissions: {}
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Same matrix as ci.yml: a tag must not be able to ship a build that
+    # only works on one platform.
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
