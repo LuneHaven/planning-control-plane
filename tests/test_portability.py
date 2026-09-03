@@ -16,6 +16,9 @@ platform:
 * path display — every repository-relative path this tool reports is
   forward-slashed (``loader`` and ``generator`` all end in ``as_posix``);
   the one place that used ``str()`` reported ``.planning\\dist`` on Windows.
+* page file names — the generated ``nodes/<id>.html`` names must survive a
+  case-insensitive filesystem (NTFS, APFS) and the Win32 reserved device
+  names, neither of which Linux ever exercises.
 """
 
 from __future__ import annotations
@@ -27,7 +30,7 @@ from pathlib import PureWindowsPath
 
 import pytest
 
-from planning_control_plane import cli as cli_module
+from planning_control_plane import cli as cli_module, generator
 
 from conftest import REPO_ROOT
 
@@ -142,3 +145,38 @@ def test_output_directory_outside_the_root_is_shown_as_the_platform_writes_it():
         )
         == "E:\\out"
     )
+
+
+# ---------------------------------------------------------- page file names
+
+
+def _node_page_names(project, out_dir) -> list[str]:
+    return sorted(p.name for p in generator.build_site(project, out_dir) if p.parent.name == "nodes")
+
+
+def test_node_pages_never_differ_only_by_case(make_project, node_dict, tmp_path):
+    """Two node ids that differ only by case are distinct in the planning
+    graph but name one file on a case-insensitive filesystem: the second
+    page would silently overwrite the first, leaving one node's page showing
+    another node's content while ``pcp build`` still reports both.
+
+    ``_safe_id_map`` already suffixes colliding stems; the collision test
+    just has to agree with the filesystem about what "colliding" means.
+    """
+    project, root = make_project(tmp_path, node_dicts=[node_dict("P1-a"), node_dict("P1-A")])
+    names = _node_page_names(project, root / "dist")
+    assert len({name.casefold() for name in names}) == len(names), names
+
+
+@pytest.mark.parametrize("node_id", ["NUL", "CON", "AUX", "PRN", "COM1", "LPT1", "nul"])
+def test_reserved_device_names_never_become_page_file_names(
+    make_project, node_dict, tmp_path, node_id
+):
+    """Win32 resolves the reserved device names even with an extension, so
+    ``nodes/NUL.html`` writes into the null device (the page vanishes while
+    the build reports success) and ``nodes/COM1.html`` fails to open. The
+    stem must not be a bare reserved name, in any case.
+    """
+    project, root = make_project(tmp_path, node_dicts=[node_dict(node_id)])
+    names = _node_page_names(project, root / "dist")
+    assert [name.split(".")[0].upper() for name in names] != [node_id.upper()], names

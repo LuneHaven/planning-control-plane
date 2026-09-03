@@ -109,6 +109,17 @@ def _write_text(path: Path, text: str) -> Path:
     return path
 
 
+#: Win32 reserved device names. Windows resolves them even with an extension
+#: appended, so ``nodes/NUL.html`` is the null device — the page is written
+#: and lost while the build reports success — and ``nodes/COM1.html`` cannot
+#: be opened at all. All of them are valid :data:`NODE_ID_RE` ids.
+_RESERVED_DEVICE_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{digit}" for digit in range(10)}
+    | {f"LPT{digit}" for digit in range(10)}
+)
+
+
 def _safe_stem(node_id: str) -> str:
     """File name stem for a node page.
 
@@ -116,10 +127,14 @@ def _safe_stem(node_id: str) -> str:
     loader keeps such ids so ``pcp validate`` can report them) has every
     unsafe character replaced with ``_``. The result can never contain a
     path separator, so generation stays inside ``nodes/``.
+
+    A stem that is a reserved device name gets a trailing ``_``: the name is
+    reserved only on its own, so ``NUL_`` is an ordinary file everywhere.
     """
-    if NODE_ID_RE.match(node_id):
-        return node_id
-    return _UNSAFE_FILENAME_CHARS.sub("_", node_id)
+    stem = node_id if NODE_ID_RE.match(node_id) else _UNSAFE_FILENAME_CHARS.sub("_", node_id)
+    if stem.upper() in _RESERVED_DEVICE_NAMES:
+        stem += "_"
+    return stem
 
 
 def _safe_id_map(project: Project) -> dict[str, str]:
@@ -128,6 +143,12 @@ def _safe_id_map(project: Project) -> dict[str, str]:
     Sanitized stems can collide (``A B`` and ``A_B``); colliding pages would
     silently overwrite each other, so collisions get a ``-2``/``-3``/...
     suffix. Iteration is over sorted ids, keeping the map deterministic.
+
+    Collision is decided case-insensitively, because that is what the
+    filesystem decides on Windows and macOS: node ids ``P1-a`` and ``P1-A``
+    are two nodes but one file there, and the second page written would
+    silently replace the first. Suffixing on every platform keeps the
+    generated site identical everywhere.
     """
     mapping: dict[str, str] = {}
     taken: set[str] = set()
@@ -135,10 +156,10 @@ def _safe_id_map(project: Project) -> dict[str, str]:
         base = _safe_stem(node_id)
         stem = base
         counter = 2
-        while stem in taken:
+        while stem.casefold() in taken:
             stem = f"{base}-{counter}"
             counter += 1
-        taken.add(stem)
+        taken.add(stem.casefold())
         mapping[node_id] = stem
     return mapping
 
