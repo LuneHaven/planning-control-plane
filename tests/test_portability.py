@@ -13,6 +13,9 @@ platform:
 * line endings — Git for Windows checks out with ``core.autocrlf=true`` by
   default, so a byte-pinned fixture arrives as CRLF while the generator
   always writes LF. Checked by asking git what it will actually do.
+* path display — every repository-relative path this tool reports is
+  forward-slashed (``loader`` and ``generator`` all end in ``as_posix``);
+  the one place that used ``str()`` reported ``.planning\\dist`` on Windows.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import PureWindowsPath
 
 import pytest
 
@@ -107,3 +111,34 @@ def test_byte_pinned_fixtures_are_checked_out_with_lf():
     # ``unset`` is what ``-text`` yields: git converts nothing, in either
     # direction, on any platform.
     assert _git_attr("tests/fixtures/phase1_style.css", "text") == "unset"
+
+
+# ------------------------------------------------------------- path display
+
+
+def test_output_directory_display_is_forward_slashed_on_windows():
+    """``pcp build`` reports where it wrote. Repository-relative paths are
+    forward-slashed on every platform — the convention the loader already
+    follows for the ``source`` strings it records — so the same project
+    reads the same way from Linux and Windows.
+    """
+    assert (
+        cli_module._output_display(
+            PureWindowsPath(r"D:\repo\.planning\dist"), PureWindowsPath(r"D:\repo")
+        )
+        == ".planning/dist"
+    )
+
+
+def test_output_directory_outside_the_root_is_shown_as_the_platform_writes_it():
+    """A directory configured outside the repository has no
+    repository-relative form; there is nothing to normalize, so it is shown
+    verbatim rather than posix-ified into something that is not a path on
+    that platform.
+    """
+    assert (
+        cli_module._output_display(
+            PureWindowsPath(r"E:\out"), PureWindowsPath(r"D:\repo")
+        )
+        == "E:\\out"
+    )
