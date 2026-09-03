@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePath
 
 import yaml
 
@@ -986,6 +986,23 @@ def cmd_graduate(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _output_display(out_dir: PurePath, root: PurePath) -> str:
+    """How ``pcp build`` names the directory it wrote into.
+
+    A repository-relative path is forward-slashed on every platform — the
+    convention ``loader`` and ``generator`` already follow for every path
+    they record — so the same project reads the same way from Linux and
+    Windows. ``str()`` alone would report ``.planning\\dist`` there.
+
+    An output directory configured outside the root has no
+    repository-relative form; it is shown as the platform writes it.
+    """
+    try:
+        return out_dir.relative_to(root).as_posix()
+    except ValueError:
+        return str(out_dir)
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     """``pcp build [--check]`` — generate or verify the static site (spec §22/§23)."""
     project = _load_project(args)
@@ -1025,10 +1042,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         return EXIT_FAILURE
 
     paths = generator.build_site(project, project.output_dir())
-    try:
-        out_display = str(project.output_dir().relative_to(project.root))
-    except ValueError:  # output directory configured outside the project root
-        out_display = str(project.output_dir())
+    out_display = _output_display(project.output_dir(), project.root)
     ideas_part = " + ideas page" if project.ideas else ""
     print(
         f"Built {len(paths)} files into {out_display} "
