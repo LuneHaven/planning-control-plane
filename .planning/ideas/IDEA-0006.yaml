@@ -1,0 +1,43 @@
+id: IDEA-0006
+title: 多项目共用环境：等会话层出现再议，不做数据模型级合并
+status: PARKED
+detail: |
+  2026-09-03 调研结论。起因：PCP 只支持单个项目，观察到 codegraph
+  （colbymchenry/codegraph）支持多个项目共用一个环境，问是否值得
+  跟进升级。
+
+  codegraph 的多项目支持属于进程层：每个项目根一个常驻 daemon
+  （一份索引、一个文件 watcher、一个 SQLite WAL）供 N 个客户端共享，
+  会话内每次调用可传 projectPath 无状态打开第二项目；数据从不跨
+  项目合并，也没有用户级项目注册表。两个工具在数据层的设计其实
+  一致（状态按项目留在磁盘上、发现自底向上、无注册表），差异只在
+  codegraph 有常驻进程层，多项目路由恰好由它承担。
+
+  PCP 是一次性 CLI，没有常驻进程，也就没有需要共用的对象；
+  -p/--project-root 已让一份安装操作任意多个项目（cli.py:1066）。
+  数据模型级合并（一张规划图跨仓库）会正面冲撞 ERROR 级的
+  repo-relative 校验（validator.py:379-409）和「规划数据随仓库走、
+  进 PR 审查」的核心主张，要动 loader / model / validator /
+  generator 四个核心模块，收益却建立在未验证的需求上。README 本就
+  把 multi-project workspace 列为 V0.2 未承诺候选（README.md:456），
+  排在 harness 集成之后，这个顺序是对的。
+
+  结论：现在不做。重启条件：仓库出现会话层（harness / MCP 集成，
+  见 docs/superpowers/specs/harness-integration-spec-draft.zh-CN.md）。
+  届时照 codegraph 模式映射：per-call 项目路径、自底向上发现沿用
+  find_planning_dir、不引入全局注册表、状态继续按项目留在
+  .planning/。
+
+  更轻的真实缺口是多仓库总览：如果这个需求先出现，可独立做聚合
+  投影（读 N 个 .planning 生成组合 Dashboard，只读不写回），不动
+  任何校验规则，规模远小于会话层改造。
+
+  完整论证与 codegraph 机制拆解见研究笔记（methodology_sources 的
+  ref）。
+relates_to: []
+benchmark_sources: []
+methodology_sources:
+  - ref: docs/superpowers/plans/2026-09-03-multi-project-environment-research.md
+  - note: codegraph 多项目机制拆解（daemon 共享、projectPath 路由、自底向上发现、无全局注册表），来自 colbymchenry/codegraph 的 src/directory.ts、src/mcp/tools.ts、src/mcp/engine.ts、src/mcp/server-instructions.ts 与 README
+created: 2026-09-03
+last_updated: 2026-09-03
