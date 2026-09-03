@@ -23,7 +23,7 @@ from planning_control_plane.loader import LoadError, load_project
 from planning_control_plane.model import AuthorityConfig, PCPError, Severity
 from planning_control_plane.validator import validate_project
 
-from tests.conftest import write_planning
+from conftest import write_planning
 
 EXIT_OK = 0
 EXIT_FAILURE = 1

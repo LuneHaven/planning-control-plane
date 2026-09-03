@@ -338,7 +338,13 @@ def test_graduate_note_that_looks_like_a_yaml_scalar_round_trips(make_project, t
     assert project.ideas["IDEA-0007"].outcome.note == "42"
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file permissions")
+# os.geteuid is Unix-only: calling it here (a decorator argument, evaluated
+# at import time) would fail collection of this whole file on Windows.
+# Windows has no root that bypasses permissions, so absent means "not root",
+# and the test runs there against the read-only attribute os.chmod sets.
+@pytest.mark.skipif(
+    getattr(os, "geteuid", lambda: 1)() == 0, reason="root ignores file permissions"
+)
 def test_graduate_restores_files_when_a_write_fails(make_project, tmp_path, cli):
     """The idea file is written first; if the node write then fails, the
     idea file must go back to its original content (IDEA-D35)."""
