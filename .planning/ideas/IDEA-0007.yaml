@@ -1,0 +1,127 @@
+id: IDEA-0007
+title: Windows 可移植性：五处缺陷长期未被发现，根因是 CI 只在 Linux 上跑
+status: OPEN
+detail: |
+  2026-09-03 一位用户在 Windows 上从源码安装 pcp 并跑测试，提交了一份
+  报告。核实后确认：报告描述的现象全部属实，但其中两处归因有误，另有
+  三项工具本体缺陷报告没有发现。
+
+  报告的结论是「工具本体 378/378 通过，5 处失败都是测试可移植性问题」。
+  这个结论不成立。
+
+  ## 报告的四项，逐条核实
+
+  1. test_graduate.py:341 在 skipif 的参数里调用 os.geteuid，该函数是
+     Unix-only，导入期求值，Windows 上整个文件收集失败。报告属实。代价
+     是该文件 35 个用例在 Windows 上一个都不执行，其中包括 graduate
+     写入失败后回滚这条关键路径。
+  2. test_review_fixes.py:26 的 `from tests.conftest import`。报告把它
+     归为 Windows 问题，这是错的：在 Linux 上用裸 pytest 同样报
+     ModuleNotFoundError。根因是 tests/ 没有 __init__.py，该导入依赖
+     仓库根在 sys.path，只有 `python -m pytest` 才满足。
+     另外报告说「python -m pytest 解决了导入问题」，与它自己的数字矛盾：
+     当时 HEAD 共 436 个用例，378 通过加 3 失败等于 381，正好是
+     436 减 35 再减 20。这 20 个用例在 Windows 上没有执行。
+  3. 两处路径分隔符断言（test_cli.py:241、test_generator.py:81）。现象
+     属实，归因只对一半。失败的是测试，但源头在 cli.py：它用
+     `str(...relative_to(...))` 返回原生分隔符，Windows 上打印
+     `.planning\dist`。仓库其余每一处 relative_to 都紧跟 as_posix
+     （loader.py:610、loader.py:691、generator.py:812），这一处是漏网，
+     修在源码比改断言更合仓库自身的约定。
+  4. CRLF 字节比较（test_ideas_ui.py:515）。属实，但修复点是仓库配置。
+     generator._write_text 固定写 LF，而该测试把生成结果与
+     tests/fixtures/phase1_style.css 做逐字节比较；仓库此前没有
+     .gitattributes，Git for Windows 默认 core.autocrlf=true 会把这个
+     fixture 检出成 CRLF。
+
+  ## 报告未发现的三项工具本体缺陷
+
+  A. stdout 编码。源码每一处文件 I/O 都显式写了 encoding="utf-8"，但
+     没有任何一处管 stdout。Windows 上重定向的 stdout 按 ANSI 代码页
+     编码，直连控制台才是 UTF-8。后果有两条：
+     - `pcp agents >> AGENTS.md` 是 pcp init 亲口打印的下一步，必然重定向。
+       片段里的 em dash 因此被写成单字节 0x97（cp1252）或双字节 0xA1AA
+       （cp936），退出码 0，没有任何提示，而所有 AI harness 都按 UTF-8
+       读 AGENTS.md。
+     - 中文项目在西文代码页的 Windows 上执行 `pcp context > capsule.md`
+       直接 UnicodeEncodeError 崩溃。
+     用户的端到端冒烟没有暴露这一条，因为它直连控制台，那条路径恰好走
+     UTF-8。
+  B. 仅大小写不同的节点 id。NODE_ID_RE 大小写都收，而 _safe_id_map 的
+     撞名检测用精确字符串集合。节点 id P1-a 与 P1-A 在规划图里是两个
+     节点，在 NTFS 与 APFS 上却是同一个文件，后写的页面静默覆盖先写的，
+     而 build 仍然报告两个节点页。validate 全程放行。
+  C. Windows 保留设备名。同一个正则不拦 CON、PRN、AUX、NUL、COM1-9、
+     LPT1-9。Win32 对这些名字带扩展名同样按设备解析，nodes/NUL.html
+     写入空设备（页面丢失但 build 报成功），nodes/COM1.html 根本打不开。
+
+  ## 核实过、确认没有问题的部分
+
+  - 文件编码：loader、generator、cli 的每一处 open 与 read_text、
+    write_text 都显式 encoding="utf-8"。
+  - CRLF 保留：pcp focus 与 pcp graduate 读写两端都用 newline=""，
+    Windows 上用户 YAML 的行尾不会被改。
+  - build 前的删除护栏：generator._ensure_safe_output_dir 与 validator
+    的 unsafe-output-directory 都走 Path.resolve 加 is_relative_to，
+    Windows 语义正确，没有数据丢失风险。
+  - 仓库没有符号链接，不存在 Windows 检出退化的问题。
+
+  ## 根因
+
+  仓库此前只有 tag 触发的 release.yml，测试仅在 ubuntu-latest 上跑，
+  没有任何 PR 或 push 触发的 CI。上述缺陷因此可以长期留在 main 而不被
+  发现。
+
+  ── 实现进展（2026-09-03，已修复，分支 fix/windows-compat）─────────
+
+  六个提交，每项都先写失败测试再改代码：
+
+  1. fbf058e  main() 入口把 stdout 与 stderr 重新配置为 UTF-8。无法
+     reconfigure 的流跳过，这是尽力而为的加固，不作为失败理由。
+  2. f818daf  新增 .gitattributes，tests/fixtures/** 标为 -text，两个
+     方向都不转换，并用 git check-attr 把这条约定钉进测试。
+  3. e5a376f  抽出 cli._output_display，仓库相对路径统一 as_posix；
+     配置在仓库外的输出目录没有仓库相对形式，仍按平台原样显示。
+  4. 7a8f79b  os.geteuid 改用 getattr 兜底；tests.conftest 改为
+     conftest。Windows 没有绕过权限的 root，缺失即视为非 root。
+  5. 63e1851  _safe_id_map 的撞名判定改为 casefold 比较，与文件系统
+     的判定一致；_safe_stem 给保留设备名加尾部下划线，这些名字只在
+     单独出现时保留，NUL_ 在任何平台都是普通文件。两处都在生成端归一，
+     各平台产出同一套文件名。
+  6. d2951a2  新增 ci.yml（push 到 main 与所有 pull request 触发），
+     ubuntu 与 windows 乘 Python 3.11 与 3.12 四格矩阵；release.yml
+     的 test job 同步扩到同一矩阵。
+
+  验证方式：Windows 行为在 Linux 上用同一条代码路径复现。编码用
+  PYTHONIOENCODING 驱动子进程；行尾用 `git clone -c core.autocrlf=true`
+  真实克隆复验，fixture 的 CR 字节数为 0；路径显示用 PureWindowsPath
+  直接断言，因此在 Linux 上也能失败；文件名用端到端 build 复验，
+  P1-a 与 P1-A 产出 P1-A.html 加 P1-a-2.html，NUL 与 COM1 产出
+  NUL_.html 加 COM1_.html。
+
+  三种模式下全量 450 项测试通过：python -m pytest、裸 pytest、删除
+  os.geteuid 模拟 Windows。
+
+  尚未确认：以上都是在 Linux 上模拟同一代码路径，Windows 上的真实结果
+  要等这个分支推上去跑 CI。已知可能需要第二轮的一处是 test_graduate 的
+  只读回滚用例，这次把它从「Windows 跳过」改成了「Windows 也跑」，依据
+  是 os.chmod(0o444) 在 Windows 上设置只读属性、写入应抛 PermissionError
+  并被 graduate 的 OSError 分支接住。这个判断没有实测。如果 CI 报红，
+  改成显式跳过 Windows 即可。
+
+  入图需要先建节点：现有节点只有 A11Y-1、A11Y-2、A11Y-3，没有一个覆盖
+  可移植性，所以 relates_to 暂时为空。
+relates_to: []
+benchmark_sources: []
+methodology_sources:
+  - note: Python 3.11 至 3.14 在 Windows 上的 stdout 编码规则：直连控制台
+      走 UTF-8（_WindowsConsoleIO），重定向到文件或管道时走
+      locale.getpreferredencoding，即 ANSI 代码页
+  - note: Win32 保留设备名（CON、PRN、AUX、NUL、COM1-9、LPT1-9）带扩展名
+      同样按设备解析，微软文件命名规则明确列出 NUL.txt 一类写法
+  - note: Git for Windows 安装默认 core.autocrlf=true；gitattributes 的
+      -text 覆盖该设置，两个方向都不做行尾转换
+  - note: pytest 的 prepend 导入模式把 conftest 所在目录放进 sys.path，
+      仓库根只有在以 python -m pytest 启动时才在 sys.path 上
+created: 2026-09-03
+last_updated: 2026-09-03
