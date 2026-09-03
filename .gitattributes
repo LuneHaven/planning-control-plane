@@ -5,3 +5,10 @@
 # Windows default (core.autocrlf=true) would check them out as CRLF and fail
 # that gate on Windows only, so no conversion is allowed in either direction.
 tests/fixtures/** -text
+
+# Build inputs must be checkout-invariant for the same reason: the generator
+# copies templates/static/* verbatim into the projection and renders the
+# .html templates through _write_text, which pins newline but cannot strip
+# \r. A CRLF checkout here leaks straight into dist/ bytes, so the built
+# site would differ per platform.
+src/planning_control_plane/templates/** -text
