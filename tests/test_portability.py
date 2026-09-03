@@ -51,8 +51,14 @@ def _run(*argv: str, encoding: str, cwd=None) -> subprocess.CompletedProcess:
 
 
 def _utf8(raw: bytes, what: str) -> str:
+    """Decode captured stdout as UTF-8, with line endings normalized.
+
+    Encoding is what these tests are about; line endings are not. A Windows
+    text-mode stdout writes CRLF, which is correct there, so it is folded
+    away rather than asserted on.
+    """
     try:
-        return raw.decode("utf-8")
+        return raw.decode("utf-8").replace("\r\n", "\n")
     except UnicodeDecodeError as exc:
         pytest.fail(f"{what} is not valid UTF-8: {exc}")
 
